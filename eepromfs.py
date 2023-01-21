@@ -1,42 +1,57 @@
 import time
+import sys, getopt
+import yaml
+import re
 import RPi.GPIO as rGPIO
 from smbus2 import SMBus
 from i2c import i2c_io
 
 class EEPROM_FS(object):
+        
     def __init__(self, chip_address=None, busnum=None, writestrobe=None, TOC_start_address=None, block_size=None, i2c=None, **kwargs) :
-        init_config()
+            
+        self.chip_address = chip_address
+        self.busnum = busnum
+        self.writestrobe = writestrobe
+        self.TOC_start_address = TOC_start_address
+        self.block_size = block_size
+        
+        self.init_config()
         if chip_address is None:
-           self.chip_address = 0x50 
-        if TOC_start_address in None:
+           self.chip_address = 0x50
+        if TOC_start_address is None:
           TOC_start_address = 0
         if busnum is None:
            self.busnum = 'i2c-0'
+
         self.build_TOC()
         self.wear_level_threshold = 100 # number of writes before triggering wear leveling
         self.wear_level_count = 0
 
     def init_config(self):
-        with open("~/.comet/config.yaml") as c:
+        with open("/home/comet/.comet/config.yaml") as c:
            try:
               config = yaml.safe_load(c)
            except yaml.YAMLError as exc:
               print(exc)
-
-        if chip_address is None:
+        
+        if self.chip_address is None:
            self.chip_address= config['i2c']['eeprom']['slaveaddr'] # for eeprom (main i2c address)
-        if busnum is None:
+        if self.busnum is None:
            self.busnum = SMBus(int(re.search("^i2c-(\d+)$",config['i2c']['smb']).group(1))) # set bus i2c-1
-        if writestrobe is None:
+        if self.writestrobe is None:
            self.writestrobe = config['i2c']['eeprom']['writestrobe'] # hold pin low to write to eeprom
-        if TOC_start_address is None:
+        if self.TOC_start_address is None:
            self.TOC_start_address = config['eeprom_fs']['TOC_start_address'] = 0
-        if block_size is None:
-           self.block_size = config['eeprom_fs']['block_size'] = 2048 
-
+        if self.block_size is None:
+           self.block_size = config['eeprom_fs']['block_size'] = 2048
+           
         rGPIO.setmode(rGPIO.BOARD)
         rGPIO.setwarnings(False)
-        rGPIO.setup(writestrobe, rGPIO.OUT)
+        rGPIO.setup(self.writestrobe, rGPIO.OUT)
+        self.mode = rGPIO.getmode()
+        self.version = rGPIO.RPI_INFO
+        
         pass
 
     def build_TOC(self):
