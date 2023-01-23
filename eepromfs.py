@@ -27,6 +27,17 @@ class EEPROM_FS(object):
         self.toc_FileList = None
         self.toc_OwnerHashList = None
         self.toc_crc = None
+        self.toc_DataBlock = None
+        
+        self.fh_filename = None
+        self.fh_filetype = None
+        self.fh_FilsSize = None
+        self.fh_NumberOfUsedBlocks = None
+        self.fh_Attributes = None
+        self.fh_InUse = None
+        self.fh_ModificationDate = None
+        self.fh_CreationDate = None
+        self.fh_crc = None
         
         self.init_config()
         if chip_address is None:
@@ -58,7 +69,7 @@ class EEPROM_FS(object):
            
         c.close()
         
-        with open("eepromfs.yaml") as d:
+        with open("config/eepromfs.yaml") as d:
            try:
               toc_config = yaml.safe_load(d)
            except yaml.YAMLError as exc:
@@ -82,6 +93,16 @@ class EEPROM_FS(object):
         if self.chip_ic in ['24C256','24C512','24C1024','24C2048']:
            self.toc_OwnerHashList = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_OwnerHashList']
         self.toc_crc = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_crc']
+        self.toc_DataBlock = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_DataBlock']
+        
+        self.fh_filename = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_filename']
+        self.fh_filetype = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_filetype']
+        self.fh_FilsSize = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_FilsSize']
+        self.fh_Attributes = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_Attributes']
+        if self.chip_ic in ['24C16','24C32','24C64','24C128','24C256','24C512','24C1024','24C2048']:
+          self.fh_NumberOfUsedBlocks = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_NumberOfUsedBlocks']
+          self.fh_ModificationDate = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_ModificationDate']
+          self.fh_CreationDate = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_CreationDate']
 
         d.close()
            
@@ -108,6 +129,7 @@ class EEPROM_FS(object):
         self.toc_FileList # List of files location address, relative from TOC end address, 24C01-24C02 [ 1 x 4 bytes], 24C04 [ 2 x 6 bytes]
         self.toc_OwnerHashList # List of approved Owner, default ['Admin','Admin'] -> [<user max 10 ASCII char>,<passwd hash max 20 ASCII char >] only for 24C254 and higher
         self.toc_crc # TOC CRC 24C01 - 24C16 [ 2 byte ], higher [ 4 byte ]
+        self.toc_DataBlock # start of Data Block
         
         # TOC size
         #       FreeMemSize, NumofFiles, FileList,   CRC,           TOC_SUM      , Default Block Size
@@ -138,7 +160,7 @@ class EEPROM_FS(object):
         self.fh_InUse # True/False with Attributes shared
         self.fh_ModificationDate # Modification Data as TIMESTAMP from year 2023 (10 years) (FFF)-(1F)-(3F) (DAYS)-(HH)-(MM) => (DDDD DDDD DDDD DDDD DDDD DDDD)-(HHHH HHHH HXMM MMMM MMMM)b => 3 byte
         self.fh_CreationDate # Creation Data as TIMESTAMP from year 2023 (10 years) (FFF)-(1F)-(3F) (DAYS)-(HH)-(MM) => (DDDD DDDD DDDD DDDD DDDD DDDD)-(HHHH HHHH HXMM MMMM MMMM)b => 3 byte
-        self.toc_crc # CRC, could be shared with Attributes and InUse
+        self.fh_crc # CRC, could be shared with Attributes and InUse
         pass
         
         # File header size
