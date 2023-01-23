@@ -1,0 +1,214 @@
+--- # eepromfs yaml config
+
+eeprom_fs:
+    TOC_version: [0x00,0x01,0x01]
+    TOC_start_address: 0
+    TOC_attributes:
+    #       FreeMemSize, NumofFiles, FileList,   CRC,           TOC_SUM      , Default Block Size
+    # 24C01 [ 1 byte ], [ 1 byte ], [ 2(2) bytes], [ 2 byte ] => [ 6 bytes ], [ 2 bytes ]
+      '24C01':
+          block_size: 2
+          toc_FreeMemorySize: 1
+          toc_NumberOfFiles: 1
+          toc_FileList: 2
+          toc_crc: 2
+    #       FreeMemSize, NumofFiles, FileList,   CRC,           TOC_SUM      , Default Block Size
+    # 24C02 [ 1 byte ], [ 1 byte ], [ 3(3) bytes], [ 2 byte ] => [ 7 bytes ], [ 2 bytes ]
+      24C02':
+          block_size: 2
+          toc_FreeMemorySize: 1
+          toc_NumberOfFiles: 1
+          toc_FileList: 3
+          toc_crc: 2
+    #       Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, FileList,        CRC,          TOC_SUM      , Default Block Size
+    # 24C04 [ 2 byte ], [ 2 byte ], [ 1 byte ], [ 1 byte ], [ 1 byte], [ 1 byte], [ 12(6) byte],  [ 2 byte] =>  [ 22 bytes ], [ 4 bytes ]
+      '24C04':
+          block_size: 4
+          toc_version: 2
+          toc_FreeMemorySize: 2
+          toc_NumberOfFiles: 1
+          toc_NumberOfOrphanBlocks: 1
+          toc_NumberOfDeletedBlocks: 1
+          toc_NumberOfWriteBlocks: 1
+          toc_FileList: 16
+          toc_crc: 2
+    #       Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, FileList,        CRC,          TOC_SUM      , Default Block Size
+    # 24C08 [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte], [ 2 byte], [ 20(10) byte], [ 2 byte] =>  [ 34 bytes ], [ 4 bytes ]
+      '24C08':
+          block_size: 4
+          toc_version: 2
+          toc_FreeMemorySize: 2
+          toc_NumberOfFiles: 2
+          toc_NumberOfOrphanBlocks: 2
+          toc_NumberOfDeletedBlocks: 2
+          toc_NumberOfWriteBlocks: 2
+          toc_FileList: 20
+          toc_crc: 2
+    #       Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, FileList,        CRC,          TOC_SUM      , Default Block Size
+    # 24C16 [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte], [ 2 byte], [ 36(18) byte], [ 2 byte] =>  [ 50 bytes ], [ 8 bytes ]
+      '24C16':
+          block_size: 8
+          toc_version: 2
+          toc_FreeMemorySize: 2
+          toc_NumberOfFiles: 2
+          toc_NumberOfOrphanBlocks: 2
+          toc_NumberOfDeletedBlocks: 2
+          toc_NumberOfWriteBlocks: 2
+          toc_FileList: 36
+          toc_crc: 2
+    #       Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, FileList,        CRC,          TOC_SUM      , Default Block Size
+    # 24C32 [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte], [ 2 byte], [ 52(26) byte], [ 2 byte] =>  [ 66 bytes ], [ 8 bytes ]
+      '24C32':
+          block_size: 8
+          toc_version: 2
+          toc_FreeMemorySize: 2
+          toc_NumberOfFiles: 2
+          toc_NumberOfOrphanBlocks: 2
+          toc_NumberOfDeletedBlocks: 2
+          toc_NumberOfWriteBlocks: 2
+          toc_FileList: 52
+          toc_crc: 2
+    #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,         CRC,           TOS_SUM   , Default Block Size 
+    # 24C64   [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 1 byte], [ 1 byte], [ 108(36) byte], [ 2 byte] =>  [ 126 bytes ], [ 8 bytes ]
+      '24C64':
+          block_size: 8
+          toc_version: 3
+          toc_FreeMemorySize: 3
+          toc_NumberOfFiles: 2
+          toc_NumberOfOrphanBlocks: 2
+          toc_NumberOfDeletedBlocks: 2
+          toc_NumberOfWriteBlocks: 2
+          toc_WearLevelThreshold: 1
+          toc_WearLevelCount: 1
+          toc_FileList: 108
+          toc_crc: 2
+    #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,         CRC,           TOS_SUM   , Default Block Size
+    # 24C128  [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 1 byte], [ 1 byte], [ 138(46) byte], [ 2 byte] =>  [ 156 bytes ], [ 16 bytes ]
+      '24C128':
+          block_size: 16
+          toc_version: 3
+          toc_FreeMemorySize: 3
+          toc_NumberOfFiles: 2
+          toc_NumberOfOrphanBlocks: 2
+          toc_NumberOfDeletedBlocks: 2
+          toc_NumberOfWriteBlocks: 2
+          toc_WearLevelThreshold: 1
+          toc_WearLevelCount: 1
+          toc_FileList: 138
+          toc_crc: 2
+    #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,       OwnHash,          CRC,         TOC_SUM,    Default Block Size   
+    # 24C256  [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 2 byte], [ 1 byte], [ 174(58) byte], [ 120(4) byte],  [ 2 byte] =>  [ 316 bytes ], [ 16 bytes ]
+      '24C256':
+          block_size: 16
+          toc_version: 3
+          toc_FreeMemorySize: 3
+          toc_NumberOfFiles: 2
+          toc_NumberOfOrphanBlocks: 3
+          toc_NumberOfDeletedBlocks: 3
+          toc_NumberOfWriteBlocks: 3
+          toc_WearLevelThreshold: 2
+          toc_WearLevelCount: 1
+          toc_FileList: 174
+          toc_OwnerHashList: 120
+          toc_crc: 2
+    #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,       OwnHash,          CRC,         TOC_SUM,    Default Block Size
+    # 24C512  [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 2 byte], [ 1 byte], [ 210(70) byte], [ 180(6) byte],  [ 2 byte] =>  [ 412 bytes ], [ 16 bytes ]
+      '24C512':
+          block_size: 16
+          toc_version: 3
+          toc_FreeMemorySize: 3
+          toc_NumberOfFiles: 2
+          toc_NumberOfOrphanBlocks: 3
+          toc_NumberOfDeletedBlocks: 3
+          toc_NumberOfWriteBlocks: 3
+          toc_WearLevelThreshold: 2
+          toc_WearLevelCount: 1
+          toc_FileList: 210
+          toc_OwnerHashList: 180
+          toc_crc: 2
+    #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,       OwnHash,          CRC,         TOC_SUM,    Default Block Size
+    # 24C1024 [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 1 byte], [ 1 byte], [ 270(90) byte], [ 240(8) byte],  [ 2 byte] =>  [ 532 bytes ], [ 32 bytes ]
+      '24C1024':
+          block_size: 32
+          toc_version: 3
+          toc_FreeMemorySize: 3
+          toc_NumberOfFiles: 2
+          toc_NumberOfOrphanBlocks: 3
+          toc_NumberOfDeletedBlocks: 3
+          toc_NumberOfWriteBlocks: 3
+          toc_WearLevelThreshold: 1
+          toc_WearLevelCount: 1
+          toc_FileList: 270
+          toc_OwnerHashList: 240
+          toc_crc: 2
+    #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,       OwnHash,          CRC,         TOC_SUM,    Default Block Size
+    # 24C2048 [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 1 byte], [ 1 byte], [ 360(120) byte], [ 300(10) byte],  [ 2 byte] =>  [ 682 bytes ], [ 40 bytes ] 
+      '24C2048':
+          block_size: 40
+          toc_version: 3
+          toc_FreeMemorySize: 3
+          toc_NumberOfFiles: 3
+          toc_NumberOfOrphanBlocks: 3
+          toc_NumberOfDeletedBlocks: 3
+          toc_NumberOfWriteBlocks: 3
+          toc_WearLevelThreshold: 1
+          toc_WearLevelCount: 1
+          toc_FileList: 360
+          toc_OwnerHashList: 300
+          toc_crc: 2
+ 
+    FH_attributes:
+    #        Filename,  FileType,    FileSize,   Attribute &   CRC           TOC_SUM
+    # 24C01 [ 3 byte ], [ 1 byte ], [ 1 byte], [ 1 byte],               => [ 6 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
+      '24C01':
+          fh_filename: 3
+          fh_filetype: 1
+          fh_FilsSize: 1
+          fh_Attributes: 1
+    #        Filename,  FileType,    FileSize,   Attribute &   CRC           TOC_SUM
+    # 24C02 [ 4 byte ], [ 1 byte ], [ 1 byte], [ 1 byte],               => [ 7 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
+      '24C02':
+          fh_filename: 4
+          fh_filetype: 1
+          fh_FilsSize: 1
+          fh_Attributes: 1
+    #          Filename,    FileType,    FileSize,    NumOfUB,   Attribute &   CRC, ModDate,    CreaDate           TOC_SUM   
+    # 24C256  [ 16 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 31 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
+      '24C256':
+          fh_filename: 16
+          fh_filetype: 1
+          fh_FilsSize: 3
+          fh_NumberOfUsedBlocks: 3
+          fh_Attributes: 2
+          fh_ModificationDate: 3
+          fh_CreationDate: 3
+    #          Filename,    FileType,    FileSize,    NumOfUB,   Attribute &   CRC, ModDate,    CreaDate           TOC_SUM 
+    # 24C512  [ 16 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 31 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
+      '24C512':
+          fh_filename: 16
+          fh_filetype: 1
+          fh_FilsSize: 3
+          fh_NumberOfUsedBlocks: 3
+          fh_Attributes: 2
+          fh_ModificationDate: 3
+          fh_CreationDate: 3
+    #          Filename,    FileType,    FileSize,    NumOfUB,   Attribute &   CRC, ModDate,    CreaDate           TOC_SUM 
+    # 24C1024 [ 20 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 35 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
+      '24C1024':
+          fh_filename: 20
+          fh_filetype: 1
+          fh_FilsSize: 3
+          fh_NumberOfUsedBlocks: 3
+          fh_Attributes: 2
+          fh_ModificationDate: 3
+          fh_CreationDate: 3
+    #          Filename,    FileType,    FileSize,    NumOfUB,   Attribute &   CRC, ModDate,    CreaDate           TOC_SUM 
+    # 24C2048 [ 20 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 35 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
+      '24C2048':
+          fh_filename: 20
+          fh_filetype: 1
+          fh_FilsSize: 3
+          fh_NumberOfUsedBlocks: 3
+          fh_Attributes: 2
+          fh_ModificationDate: 3
+          fh_CreationDate: 3

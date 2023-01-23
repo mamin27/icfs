@@ -8,13 +8,25 @@ from i2c import i2c_io
 
 class EEPROM_FS(object):
         
-    def __init__(self, chip_address=None, busnum=None, writestrobe=None, TOC_start_address=None, block_size=None, i2c=None, **kwargs) :
-            
+    def __init__(self, chip_ic=None, chip_address=None, busnum=None, writestrobe=None, TOC_start_address=None, i2c=None, **kwargs) :
+        
+        self.chip_ic = chip_ic    
         self.chip_address = chip_address
         self.busnum = busnum
         self.writestrobe = writestrobe
+        self.block_size=None
         self.TOC_start_address = TOC_start_address
-        self.block_size = block_size
+        self.toc_version = None
+        self.toc_FreeMemorySize = None
+        self.toc_NumberOfFiles = None
+        self.toc_NumberOfOrphanBlocks = None
+        self.toc_NumberOfDeletedBlocks = None
+        self.toc_NumberOfWriteBlocks = None
+        self.toc_WearLevelThreshold = None
+        self.toc_WearLevelCount = None
+        self.toc_FileList = None
+        self.toc_OwnerHashList = None
+        self.toc_crc = None
         
         self.init_config()
         if chip_address is None:
@@ -23,7 +35,7 @@ class EEPROM_FS(object):
           TOC_start_address = 0
         if busnum is None:
            self.busnum = 'i2c-0'
-
+        
         self.build_TOC()
         self.wear_level_threshold = 100 # number of writes before triggering wear leveling
         self.wear_level_count = 0
@@ -35,16 +47,43 @@ class EEPROM_FS(object):
            except yaml.YAMLError as exc:
               print(exc)
         
+        if self.chip_ic is None:
+           self.chip_ic= config['i2c']['eeprom']['ic']
         if self.chip_address is None:
            self.chip_address= config['i2c']['eeprom']['slaveaddr'] # for eeprom (main i2c address)
         if self.busnum is None:
            self.busnum = SMBus(int(re.search("^i2c-(\d+)$",config['i2c']['smb']).group(1))) # set bus i2c-1
         if self.writestrobe is None:
            self.writestrobe = config['i2c']['eeprom']['writestrobe'] # hold pin low to write to eeprom
+           
+        c.close()
+        
+        with open("eepromfs.yaml") as d:
+           try:
+              toc_config = yaml.safe_load(d)
+           except yaml.YAMLError as exc:
+              print(exc)
+              
         if self.TOC_start_address is None:
-           self.TOC_start_address = config['eeprom_fs']['TOC_start_address'] = 0
-        if self.block_size is None:
-           self.block_size = config['eeprom_fs']['block_size'] = 2048
+           self.TOC_start_address = toc_config['eeprom_fs']['TOC_start_address']      
+        self.block_size = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['block_size'] 
+        if self.chip_ic in ['24C04','24C08','24C16','24C32','24C64','24C128','24C256','24C512','24C1024','24C2048']:
+           self.toc_version = toc_config['eeprom_fs']['TOC_version']
+        self.toc_FreeMemorySize = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_FreeMemorySize']
+        self.toc_NumberOfFiles = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_NumberOfFiles']
+        if self.chip_ic in ['24C04','24C08','24C16','24C32','24C64','24C128','24C256','24C512','24C1024','24C2048']:
+           self.toc_NumberOfOrphanBlocks = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_NumberOfOrphanBlocks']
+           self.toc_NumberOfDeletedBlocks = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_NumberOfDeletedBlocks']
+           self.toc_NumberOfWriteBlocks = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_NumberOfWriteBlocks']
+        if self.chip_ic in ['24C64','24C128','24C256','24C512','24C1024','24C2048']:
+           self.toc_WearLevelThreshold = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_WearLevelThreshold']
+           self.toc_WearLevelCount = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_WearLevelCount']
+        self.toc_FileList = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_FileList']
+        if self.chip_ic in ['24C256','24C512','24C1024','24C2048']:
+           self.toc_OwnerHashList = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_OwnerHashList']
+        self.toc_crc = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_crc']
+
+        d.close()
            
         rGPIO.setmode(rGPIO.BOARD)
         rGPIO.setwarnings(False)
