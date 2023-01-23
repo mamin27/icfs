@@ -3,8 +3,12 @@ import sys, getopt
 import yaml
 import re
 import RPi.GPIO as rGPIO
+from ecomet_i2c_sensors import i2c_command
+from ecomet_i2c_sensors.eeprom import chip_list,eeprom_write,eeprom_read
 from smbus2 import SMBus
-from i2c import i2c_io
+from eeprom_math import hex_to_bytes,hex_to_2bytes,hex_to_3bytes,calculate_2byte_crc
+
+#from i2c import i2c_io
 
 class EEPROM_FS(object):
         
@@ -39,12 +43,22 @@ class EEPROM_FS(object):
         self.fh_CreationDate = None
         self.fh_crc = None
         
+        self.toc_data = []
+        
+        self.toc_version_data = None
+        self.toc_FreeMemorySize_data = None
+        self.toc_NumberOfFiles = None
+        self.toc_NumberOfOrphanBlocks = None
+        self.toc_NumberOfDeletedBlocks = None
+        self.toc_NumberOfWriteBlocks = None
+        self.toc_crc_data = None
+        
         self.init_config()
-        if chip_address is None:
+        if self.chip_address is None:
            self.chip_address = 0x50
-        if TOC_start_address is None:
-          TOC_start_address = 0
-        if busnum is None:
+        if self.TOC_start_address is None:
+           self.TOC_start_address = 0
+        if self.busnum is None:
            self.busnum = 'i2c-0'
         
         self.build_TOC()
@@ -76,21 +90,22 @@ class EEPROM_FS(object):
               print(exc)
               
         if self.TOC_start_address is None:
-           self.TOC_start_address = toc_config['eeprom_fs']['TOC_start_address']      
+           self.TOC_start_address = toc_config['eeprom_fs']['TOC_start_address']
+        self.TOC_version = toc_config['eeprom_fs']['TOC_version']  
         self.block_size = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['block_size'] 
-        if self.chip_ic in ['24C04','24C08','24C16','24C32','24C64','24C128','24C256','24C512','24C1024','24C2048']:
-           self.toc_version = toc_config['eeprom_fs']['TOC_version']
+        if self.chip_ic in ['24c04','24c08','24c16','24c32','24c64','24c128','24c256','24c512','24c1024','24Cc048']:
+           self.toc_version = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_version']
         self.toc_FreeMemorySize = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_FreeMemorySize']
         self.toc_NumberOfFiles = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_NumberOfFiles']
-        if self.chip_ic in ['24C04','24C08','24C16','24C32','24C64','24C128','24C256','24C512','24C1024','24C2048']:
+        if self.chip_ic in ['24c04','24c08','24c16','24c32','24c64','24c128','24c256','24c512','24c1024','24Cc048']:
            self.toc_NumberOfOrphanBlocks = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_NumberOfOrphanBlocks']
            self.toc_NumberOfDeletedBlocks = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_NumberOfDeletedBlocks']
            self.toc_NumberOfWriteBlocks = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_NumberOfWriteBlocks']
-        if self.chip_ic in ['24C64','24C128','24C256','24C512','24C1024','24C2048']:
+        if self.chip_ic in ['24c64','24c128','24c256','24c512','24c1024','24c2048']:
            self.toc_WearLevelThreshold = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_WearLevelThreshold']
            self.toc_WearLevelCount = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_WearLevelCount']
         self.toc_FileList = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_FileList']
-        if self.chip_ic in ['24C256','24C512','24C1024','24C2048']:
+        if self.chip_ic in ['24c256','24c512','24c1024','24c2048']:
            self.toc_OwnerHashList = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_OwnerHashList']
         self.toc_crc = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_crc']
         self.toc_DataBlock = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_DataBlock']
@@ -99,7 +114,7 @@ class EEPROM_FS(object):
         self.fh_filetype = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_filetype']
         self.fh_FilsSize = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_FilsSize']
         self.fh_Attributes = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_Attributes']
-        if self.chip_ic in ['24C16','24C32','24C64','24C128','24C256','24C512','24C1024','24C2048']:
+        if self.chip_ic in ['24c16','24c32','24c64','24c128','24c256','24c512','24c1024','24c2048']:
           self.fh_NumberOfUsedBlocks = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_NumberOfUsedBlocks']
           self.fh_ModificationDate = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_ModificationDate']
           self.fh_CreationDate = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_CreationDate']
@@ -113,7 +128,7 @@ class EEPROM_FS(object):
         self.version = rGPIO.RPI_INFO
         
         pass
-
+    
     def build_TOC(self):
         # Read TOC from EEPROM
         # If TOC does not exist, create new TOC
@@ -144,10 +159,41 @@ class EEPROM_FS(object):
         # 24C64   [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 1 byte], [ 1 byte], [ 108(36) byte], [ 2 byte] =>  [ 126 bytes ], [ 8 bytes ]
         # 24C128  [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 1 byte], [ 1 byte], [ 138(46) byte], [ 2 byte] =>  [ 156 bytes ], [ 16 bytes ]
         #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,       OwnHash,          CRC,         TOC_SUM,    Default Block Size   
-        # 24C256  [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 2 byte], [ 1 byte], [ 174(58) byte], [ 120(4) byte],  [ 2 byte] =>  [ 316 bytes ], [ 16 bytes ]
+        # 24C256  [ 2 byte ], [ 3 byte ], [ 2 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 2 byte], [ 1 byte], [ 174(58) byte], [ 120(4) byte],  [ 2 byte] =>  [ 316 bytes ], [ 16 bytes ]
         # 24C512  [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 2 byte], [ 1 byte], [ 210(70) byte], [ 180(6) byte],  [ 2 byte] =>  [ 412 bytes ], [ 16 bytes ]
         # 24C1024 [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 1 byte], [ 1 byte], [ 270(90) byte], [ 240(8) byte],  [ 2 byte] =>  [ 532 bytes ], [ 32 bytes ]
         # 24C2048 [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 1 byte], [ 1 byte], [ 360(120) byte], [ 300(10) byte],  [ 2 byte] =>  [ 682 bytes ], [ 40 bytes ]
+        
+        chip_list.init()
+        
+        self.toc_NumberOfFiles = 0
+        self.toc_NumberOfOrphanBlocks = 0
+        self.toc_NumberOfDeletedBlocks = 0
+        self.toc_NumberOfWriteBlocks = 0
+        
+        if self.toc_version == 3 :
+           self.toc_version_data = self.TOC_version
+        elif self.toc_version == 2 :
+           self.toc_version_data = self.TOC_version[1:]
+           
+        print (self.toc_version_data)
+        
+        if self.chip_ic == '24c01' :
+           self.toc_FreeMemorySize_data = 0x7F - self.toc_DataBlock + 1
+           data_content = hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles) + hex_to_2bytes(0x0000)
+           self.toc_crc_data = calculate_2byte_crc(data_content)
+           data_crc = data_content + hex_to_2bytes(self.toc_crc_data)
+           data_wipe = []
+           for i in range(self.toc_FreeMemorySize_data) :
+              data_wipe = data_wipe + [0x11]
+           cmp = eeprom_write.writeNBytes(self.TOC_start_address, data_crc, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           cmp = eeprom_write.writeNBytes(self.toc_DataBlock, data_wipe, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+        
+        if self.chip_ic == '24c256' :
+           self.toc_FreeMemorySize_data = 0x7FFF - self.toc_DataBlock
+           toc_FreeMemorySize_data = self.hex_to_2bytes(self.toc_FreeMemorySize_data)
+           data = self.TOC_version_data + toc_FreeMemorySize_data + [0x01,0x02,0x03]
+           cmp = eeprom_write.writeNBytes(self.TOC_start_address, data, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
         
         pass
         
@@ -218,6 +264,34 @@ class EEPROM_FS(object):
 
     def check_fs(self):
         # check consistency of the file system
+        chip_list.init()
+        
+        self.toc_NumberOfFiles = 0
+        self.toc_NumberOfOrphanBlocks = 0
+        self.toc_NumberOfDeletedBlocks = 0
+        self.toc_NumberOfWriteBlocks = 0
+        
+        if self.toc_version == 3 :
+           self.toc_version_data = self.TOC_version
+        elif self.toc_version == 2 :
+           self.toc_version_data = self.TOC_version[1:]
+           
+        print (self.toc_version_data)
+        
+        if self.chip_ic == '24c01' :
+           self.toc_data = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           self.toc_FreeMemorySize_data = self.toc_data [0]
+           self.toc_NumberOfFiles_data = self.toc_data [1]
+           self.toc_FileList_data = self.toc_data [2:3]
+           stored_crc = str(hex(self.toc_data[4])) + str(hex(self.toc_data[5]))[2:]
+           calc_crc = str(hex(calculate_2byte_crc(self.toc_data [:4])))
+           
+           if (stored_crc == calc_crc) :
+              print ('TOC CRC16 is ok')
+           
+           print ("Stored CRC: {:02x}{:02x}".format(self.toc_data[4],self.toc_data[5]))
+           print ("Calculated CRC: {:04x}".format(calculate_2byte_crc(self.toc_data [:4])))
+           
         pass
 
     def wear_leveling(self):

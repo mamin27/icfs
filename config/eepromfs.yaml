@@ -5,17 +5,17 @@ eeprom_fs:
     TOC_start_address: 0
     TOC_attributes:
     #       FreeMemSize, NumofFiles, FileList,   CRC,           TOC_SUM      , Default Block Size
-    # 24C01 [ 1 byte ], [ 1 byte ], [ 2(2) bytes], [ 2 byte ] => [ 6 bytes ], [ 2 bytes ]
-      '24C01':
+    # 24c01 [ 1 byte ], [ 1 byte ], [ 2(2) bytes], [ 2 byte ] => [ 6 bytes ], [ 2 bytes ]
+      '24c01':
           block_size: 2
           toc_FreeMemorySize: 1
           toc_NumberOfFiles: 1
           toc_FileList: 2
           toc_crc: 2
-          toc_DataBlock: 9
+          toc_DataBlock: 0x06
     #       FreeMemSize, NumofFiles, FileList,   CRC,           TOC_SUM      , Default Block Size
-    # 24C02 [ 1 byte ], [ 1 byte ], [ 3(3) bytes], [ 2 byte ] => [ 7 bytes ], [ 2 bytes ]
-      24C02':
+    # 24c02 [ 1 byte ], [ 1 byte ], [ 3(3) bytes], [ 2 byte ] => [ 7 bytes ], [ 2 bytes ]
+      24c02':
           block_size: 2
           toc_FreeMemorySize: 1
           toc_NumberOfFiles: 1
@@ -23,8 +23,8 @@ eeprom_fs:
           toc_crc: 2
           toc_DataBlock: 10
     #       Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, FileList,        CRC,          TOC_SUM      , Default Block Size
-    # 24C04 [ 2 byte ], [ 2 byte ], [ 1 byte ], [ 1 byte ], [ 1 byte], [ 1 byte], [ 12(6) byte],  [ 2 byte] =>  [ 22 bytes ], [ 4 bytes ]
-      '24C04':
+    # 24c04 [ 2 byte ], [ 2 byte ], [ 1 byte ], [ 1 byte ], [ 1 byte], [ 1 byte], [ 12(6) byte],  [ 2 byte] =>  [ 22 bytes ], [ 4 bytes ]
+      '24c04':
           block_size: 4
           toc_version: 2
           toc_FreeMemorySize: 2
@@ -36,8 +36,8 @@ eeprom_fs:
           toc_crc: 2
           toc_DataBlock: 30
     #       Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, FileList,        CRC,          TOC_SUM      , Default Block Size
-    # 24C08 [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte], [ 2 byte], [ 20(10) byte], [ 2 byte] =>  [ 34 bytes ], [ 4 bytes ]
-      '24C08':
+    # 24c08 [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte], [ 2 byte], [ 20(10) byte], [ 2 byte] =>  [ 34 bytes ], [ 4 bytes ]
+      '24c08':
           block_size: 4
           toc_version: 2
           toc_FreeMemorySize: 2
@@ -49,8 +49,8 @@ eeprom_fs:
           toc_crc: 2
           toc_DataBlock: 37
     #       Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, FileList,        CRC,          TOC_SUM      , Default Block Size
-    # 24C16 [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte], [ 2 byte], [ 36(18) byte], [ 2 byte] =>  [ 50 bytes ], [ 8 bytes ]
-      '24C16':
+    # 24c16 [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte], [ 2 byte], [ 36(18) byte], [ 2 byte] =>  [ 50 bytes ], [ 8 bytes ]
+      '24c16':
           block_size: 8
           toc_version: 2
           toc_FreeMemorySize: 2
@@ -62,8 +62,8 @@ eeprom_fs:
           toc_crc: 2
           toc_DataBlock: 59
     #       Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, FileList,        CRC,          TOC_SUM      , Default Block Size
-    # 24C32 [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte], [ 2 byte], [ 52(26) byte], [ 2 byte] =>  [ 66 bytes ], [ 8 bytes ]
-      '24C32':
+    # 24c32 [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte], [ 2 byte], [ 52(26) byte], [ 2 byte] =>  [ 66 bytes ], [ 8 bytes ]
+      '24c32':
           block_size: 8
           toc_version: 2
           toc_FreeMemorySize: 2
@@ -75,8 +75,8 @@ eeprom_fs:
           toc_crc: 2
           toc_DataBlock: 75
     #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,         CRC,           TOS_SUM   , Default Block Size 
-    # 24C64   [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 1 byte], [ 1 byte], [ 108(36) byte], [ 2 byte] =>  [ 126 bytes ], [ 8 bytes ]
-      '24C64':
+    # 24c64   [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 1 byte], [ 1 byte], [ 108(36) byte], [ 2 byte] =>  [ 126 bytes ], [ 8 bytes ]
+      '24c64':
           block_size: 8
           toc_version: 3
           toc_FreeMemorySize: 3
@@ -90,8 +90,8 @@ eeprom_fs:
           toc_crc: 2
           toc_DataBlock: 135
     #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,         CRC,           TOS_SUM   , Default Block Size
-    # 24C128  [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 1 byte], [ 1 byte], [ 138(46) byte], [ 2 byte] =>  [ 156 bytes ], [ 16 bytes ]
-      '24C128':
+    # 24c128  [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 1 byte], [ 1 byte], [ 138(46) byte], [ 2 byte] =>  [ 156 bytes ], [ 16 bytes ]
+      '24c128':
           block_size: 16
           toc_version: 3
           toc_FreeMemorySize: 3
@@ -105,11 +105,11 @@ eeprom_fs:
           toc_crc: 2
           toc_DataBlock: 173
     #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,       OwnHash,          CRC,         TOC_SUM,    Default Block Size   
-    # 24C256  [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 2 byte], [ 1 byte], [ 174(58) byte], [ 120(4) byte],  [ 2 byte] =>  [ 316 bytes ], [ 16 bytes ]
-      '24C256':
+    # 24c256  [ 3 byte ], [ 2 byte ], [ 2 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 2 byte], [ 1 byte], [ 174(58) byte], [ 120(4) byte],  [ 2 byte] =>  [ 316 bytes ], [ 16 bytes ]
+      '24c256':
           block_size: 16
           toc_version: 3
-          toc_FreeMemorySize: 3
+          toc_FreeMemorySize: 2
           toc_NumberOfFiles: 2
           toc_NumberOfOrphanBlocks: 3
           toc_NumberOfDeletedBlocks: 3
@@ -121,8 +121,8 @@ eeprom_fs:
           toc_crc: 2
           toc_DataBlock: 333
     #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,       OwnHash,          CRC,         TOC_SUM,    Default Block Size
-    # 24C512  [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 2 byte], [ 1 byte], [ 210(70) byte], [ 180(6) byte],  [ 2 byte] =>  [ 412 bytes ], [ 16 bytes ]
-      '24C512':
+    # 24c512  [ 3 byte ], [ 3 byte ], [ 2 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 2 byte], [ 1 byte], [ 210(70) byte], [ 180(6) byte],  [ 2 byte] =>  [ 412 bytes ], [ 16 bytes ]
+      '24c512':
           block_size: 16
           toc_version: 3
           toc_FreeMemorySize: 3
@@ -135,10 +135,10 @@ eeprom_fs:
           toc_FileList: 210
           toc_OwnerHashList: 180
           toc_crc: 2
-          toc_DataBlock: 429
+          toc_DataBlock: 0x1AD
     #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,       OwnHash,          CRC,         TOC_SUM,    Default Block Size
-    # 24C1024 [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 1 byte], [ 1 byte], [ 270(90) byte], [ 240(8) byte],  [ 2 byte] =>  [ 532 bytes ], [ 32 bytes ]
-      '24C1024':
+    # 24c1024 [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 1 byte], [ 1 byte], [ 270(90) byte], [ 240(8) byte],  [ 2 byte] =>  [ 532 bytes ], [ 32 bytes ]
+      '24c1024':
           block_size: 32
           toc_version: 3
           toc_FreeMemorySize: 3
@@ -153,8 +153,8 @@ eeprom_fs:
           toc_crc: 2
           toc_DataBlock: 564
     #          Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, WLThr,      WLCount,   FileList,       OwnHash,          CRC,         TOC_SUM,    Default Block Size
-    # 24C2048 [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 1 byte], [ 1 byte], [ 360(120) byte], [ 300(10) byte],  [ 2 byte] =>  [ 682 bytes ], [ 40 bytes ] 
-      '24C2048':
+    # 24c2048 [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 1 byte], [ 1 byte], [ 360(120) byte], [ 300(10) byte],  [ 2 byte] =>  [ 682 bytes ], [ 40 bytes ] 
+      '24c2048':
           block_size: 40
           toc_version: 3
           toc_FreeMemorySize: 3
@@ -171,36 +171,36 @@ eeprom_fs:
  
     FH_attributes:
     #        Filename,  FileType,    FileSize,   Attribute &   CRC           TOC_SUM
-    # 24C01 [ 3 byte ], [ 1 byte ], [ 1 byte], [ 1 byte],               => [ 6 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
-      '24C01':
+    # 24c01 [ 3 byte ], [ 1 byte ], [ 1 byte], [ 1 byte],               => [ 6 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
+      '24c01':
           fh_filename: 3
           fh_filetype: 1
           fh_FilsSize: 1
           fh_Attributes: 1
     #        Filename,  FileType,    FileSize,   Attribute &   CRC           TOC_SUM
-    # 24C02 [ 4 byte ], [ 1 byte ], [ 1 byte], [ 1 byte],               => [ 7 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
-      '24C02':
+    # 24c02 [ 4 byte ], [ 1 byte ], [ 1 byte], [ 1 byte],               => [ 7 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
+      '24c02':
           fh_filename: 4
           fh_filetype: 1
           fh_FilsSize: 1
           fh_Attributes: 1
     #        Filename,  FileType,    FileSize,   Attribute &   CRC           TOC_SUM
-    # 24C04 [ 4 byte ], [ 1 byte ], [ 2 byte ], [ 1 byte],             => [ 8 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
-      '24C04':
+    # 24c04 [ 4 byte ], [ 1 byte ], [ 2 byte ], [ 1 byte],             => [ 8 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
+      '24c04':
           fh_filename: 4
           fh_filetype: 1
           fh_FilsSize: 2
           fh_Attributes: 1
     #        Filename,  FileType,    FileSize,   Attribute &   CRC           TOC_SUM
-    # 24C08 [ 6 byte ], [ 1 byte ], [ 2 byte ], [ 1 byte],             => [ 10 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
-      '24C08':
+    # 24c08 [ 6 byte ], [ 1 byte ], [ 2 byte ], [ 1 byte],             => [ 10 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
+      '24c08':
           fh_filename: 6
           fh_filetype: 1
           fh_FilsSize: 2
           fh_Attributes: 1
     #        Filename,  FileType,    FileSize,   NumOfUB, Attribute &   CRC, ModDate,    CreaDate           TOC_SUM
-    # 24C16 [ 6 byte ], [ 1 byte ], [ 2 byte ], [2 byte], [ 1 byte],        [ 3 byte ], [ 3 byte ],     => [ 18 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
-      '24C16':
+    # 24c16 [ 6 byte ], [ 1 byte ], [ 2 byte ], [2 byte], [ 1 byte],        [ 3 byte ], [ 3 byte ],     => [ 18 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
+      '24c16':
           fh_filename: 6
           fh_filetype: 1
           fh_FilsSize: 2
@@ -209,8 +209,8 @@ eeprom_fs:
           fh_ModificationDate: 3
           fh_CreationDate: 3
     #        Filename,  FileType,    FileSize,   NumOfUB, Attribute &   CRC, ModDate,    CreaDate           TOC_SUM
-    # 24C32 [ 8 byte ], [ 1 byte ], [ 2 byte ], [2 byte], [ 1 byte],        [ 3 byte ], [ 3 byte ],     => [ 20 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
-      '24C32':
+    # 24c32 [ 8 byte ], [ 1 byte ], [ 2 byte ], [2 byte], [ 1 byte],        [ 3 byte ], [ 3 byte ],     => [ 20 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
+      '24c32':
           fh_filename: 8
           fh_filetype: 1
           fh_FilsSize: 2
@@ -219,8 +219,8 @@ eeprom_fs:
           fh_ModificationDate: 3
           fh_CreationDate: 3
     #          Filename,    FileType,    FileSize,    NumOfUB,   Attribute &   CRC, ModDate,    CreaDate           TOC_SUM 
-    # 24C64   [ 12 byte ], [ 1 byte ],   [ 3 byte ], [ 2 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 26 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
-      '24C64':
+    # 24c64   [ 12 byte ], [ 1 byte ],   [ 3 byte ], [ 2 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 26 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
+      '24c64':
           fh_filename: 12
           fh_filetype: 1
           fh_FilsSize: 3
@@ -229,8 +229,8 @@ eeprom_fs:
           fh_ModificationDate: 3
           fh_CreationDate: 3
     #          Filename,    FileType,    FileSize,    NumOfUB,   Attribute &   CRC, ModDate,    CreaDate           TOC_SUM 
-    # 24C128  [ 16 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 30 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
-      '24C128':
+    # 24c128  [ 16 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 30 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
+      '24c128':
           fh_filename: 16
           fh_filetype: 1
           fh_FilsSize: 3
@@ -239,8 +239,8 @@ eeprom_fs:
           fh_ModificationDate: 3
           fh_CreationDate: 3
     #          Filename,    FileType,    FileSize,    NumOfUB,   Attribute &   CRC, ModDate,    CreaDate           TOC_SUM   
-    # 24C256  [ 16 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 31 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
-      '24C256':
+    # 24c256  [ 16 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 31 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
+      '24c256':
           fh_filename: 16
           fh_filetype: 1
           fh_FilsSize: 3
@@ -249,8 +249,8 @@ eeprom_fs:
           fh_ModificationDate: 3
           fh_CreationDate: 3
     #          Filename,    FileType,    FileSize,    NumOfUB,   Attribute &   CRC, ModDate,    CreaDate           TOC_SUM 
-    # 24C512  [ 16 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 31 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
-      '24C512':
+    # 24c512  [ 16 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 31 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
+      '24c512':
           fh_filename: 16
           fh_filetype: 1
           fh_FilsSize: 3
@@ -259,8 +259,8 @@ eeprom_fs:
           fh_ModificationDate: 3
           fh_CreationDate: 3
     #          Filename,    FileType,    FileSize,    NumOfUB,   Attribute &   CRC, ModDate,    CreaDate           TOC_SUM 
-    # 24C1024 [ 20 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 35 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
-      '24C1024':
+    # 24c1024 [ 20 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 35 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
+      '24c1024':
           fh_filename: 20
           fh_filetype: 1
           fh_FilsSize: 3
@@ -269,8 +269,8 @@ eeprom_fs:
           fh_ModificationDate: 3
           fh_CreationDate: 3
     #          Filename,    FileType,    FileSize,    NumOfUB,   Attribute &   CRC, ModDate,    CreaDate           TOC_SUM 
-    # 24C2048 [ 20 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 35 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
-      '24C2048':
+    # 24c2048 [ 20 byte ], [ 1 byte ],   [ 3 byte ], [ 3 byte ], [ 2 byte ],       [ 3 byte ], [ 3 byte],  =>     [ 35 bytes], [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0] + CRC_H
+      '24c2048':
           fh_filename: 20
           fh_filetype: 1
           fh_FilsSize: 3
