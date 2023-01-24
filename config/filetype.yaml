@@ -1,0 +1,6 @@
+--- # filetype yaml config
+
+ft:
+    'txt': 00
+    'bin': 01
+    'pdf': 02
