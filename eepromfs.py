@@ -47,6 +47,7 @@ class EEPROM_FS(object):
         self.toc_OwnerHashList = None
         self.toc_crc = None
         self.toc_DataBlock = None
+        self.toc_data_content = []
 
         self.fh_filename = None
         self.fh_filetype = None
@@ -61,7 +62,7 @@ class EEPROM_FS(object):
         self.fh_filename_data = 0x00
         self.fh_build_data = None
 
-        self.toc_data = []
+        self.toc_data_content = []
 
         self.toc_version_data = None
         self.toc_FreeMemorySize_data = None
@@ -204,9 +205,9 @@ class EEPROM_FS(object):
 
         if self.chip_ic == '24c01' :
            self.toc_FreeMemorySize_data = 0x7F - self.toc_DataBlock + 1
-           data_content = hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles) + hex_to_2bytes(0x0000)
-           self.toc_crc_data = calculate_2byte_crc(data_content)
-           data_crc = data_content + hex_to_2bytes(self.toc_crc_data)
+           self.toc_data_content = hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles) + hex_to_2bytes(0x0000)
+           self.toc_crc_data = calculate_2byte_crc(self.toc_data_content)
+           data_crc = self.toc_data_content + hex_to_2bytes(self.toc_crc_data)
            data_wipe = []
            for i in range(self.toc_FreeMemorySize_data) :
               data_wipe = data_wipe + [0x11]
@@ -238,14 +239,14 @@ class EEPROM_FS(object):
         #print (self.toc_version_data)
 
         if self.chip_ic == '24c01' :
-           self.toc_data = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
-           self.toc_FreeMemorySize_data = self.toc_data [0]
-           self.toc_NumberOfFiles_data = self.toc_data [1]
-           self.toc_FileList_data = self.toc_data [2:4]
-           stored_crc = str(hex(self.toc_data[4])) + str(hex(self.toc_data[5]))[2:]
-           calc_crc = str(hex(calculate_2byte_crc(self.toc_data [:4])))
+           self.toc_data_content = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           self.toc_FreeMemorySize_data = self.toc_data_content [0]
+           self.toc_NumberOfFiles_data = self.toc_data_content [1]
+           self.toc_FileList_data = self.toc_data_content [2:4]
+           stored_crc = str(hex(self.toc_data_content[4])) + str(hex(self.toc_data_content[5]))[2:]
+           calc_crc = str(hex(calculate_2byte_crc(self.toc_data_content[:4])))
            
-           print("TOC_Data: ",self.toc_data)
+           print("TOC_Data: ",self.toc_data_content)
            print("File List: ",self.toc_FileList_data)
 
            if (stored_crc == calc_crc) :
@@ -253,8 +254,8 @@ class EEPROM_FS(object):
               self.error_code['CRC16'] = self.ERR_CRC16_OK
               return (list(self.error_code.values())[-1])
 
-           #print ("Stored CRC: {:02x}{:02x}".format(self.toc_data[4],self.toc_data[5]))
-           #print ("Calculated CRC: {:04x}".format(calculate_2byte_crc(self.toc_data [:4])))
+           #print ("Stored CRC: {:02x}{:02x}".format(self.toc_data_content[4],self.toc_data_content[5]))
+           #print ("Calculated CRC: {:04x}".format(calculate_2byte_crc(self.toc_data_content[:4])))
 
         self.error_code['CRC16'] = self.ERR_CRC16_WRONG
         return (list(self.error_code.values())[-1])
@@ -269,6 +270,44 @@ class EEPROM_FS(object):
 
         self.error_code['read_TOC'] = self.ERR_PASS
         return(list(self.error_code.values())[-1])
+
+    def add_file_to_TOC(self):
+        # Add file information to TOC
+        if self.chip_ic == '24c01' :
+           idx = 0
+           for x in self.toc_FileList_data :
+              if x == 0 :
+                 self.toc_NumberOfFiles_data = self.toc_NumberOfFiles_data + 1
+                 self.toc_FileList_data[x] = self.file_db_address
+                 break
+              idx = idx + 1
+           self.sync_TOC()
+        pass
+
+    def sync_TOC(self):
+        # Synchronize changes in TOC
+        if self.chip_ic == '24c01' :
+           toc_data_content_read = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           toc_FreeMemorySize_data_read = self.toc_data_content [0]
+           if toc_FreeMemorySize_data_read != self.toc_FreeMemorySize_data :
+                   cmp = eeprom_write.writeNBytes(self.TOC_start_address, self.toc_FreeMemorySize_data, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                   print("FreeMemorySize needs to sync")
+           toc_NumberOfFiles_data_read = self.toc_data_content [1]
+           if toc_NumberOfFiles_data_read != self.toc_NumberOfFiles_data :
+                   print (self.toc_NumberOfFiles_data)
+                   cmp = eeprom_write.writeNBytes(self.TOC_start_address + 1, hex_to_bytes(self.toc_NumberOfFiles_data), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                   print("NumberOfFiles needs to sync")
+           toc_FileList_data_read = self.toc_data_content [2:4]
+           if toc_FileList_data_read != self.toc_FileList_data :
+                   idx = 2
+                   for x in self.toc_FileList_data :
+                      cmp = eeprom_write.writeNBytes(self.TOC_start_address + idx, hex_to_bytes(x), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                      print("FileList[{}] needs to sync ..{:02x}".format(idx,x))
+                      idx = idx + 1
+           calc_crc = calculate_2byte_crc(self.toc_data_content[:4])
+           print("calc_crc: ", calc_crc)
+           cmp = eeprom_write.writeNBytes(self.TOC_start_address + 4, hex_to_2bytes(calc_crc), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+        pass
 
     def build_file_header(self, filename, filetype, FileSize, Option_RO = None) :
         self.fh_filename # Start Address of DataLocation
@@ -371,10 +410,6 @@ class EEPROM_FS(object):
         #print("matrix_data: {}". format(self.file_block[1].out()))
         pass
 
-    def add_file_to_TOC(self, file_name, file_size, file_type, start_address):
-        # Add file information to TOC
-        pass
-
     def delete_file_from_TOC(self, file_name):
         # delete file information from TOC
         pass
@@ -398,10 +433,28 @@ class EEPROM_FS(object):
         # locate file in TOC
         # write data to chip
         data_content = []
+        data_crc = []
+        c = 1
+        for x in self.fh_build_data :
+           data_content.append(x)
+           if c <= (len(self.fh_build_data) - 2) :   #CRC & Attribute byte are excluded
+              data_crc.append(x)
+           c = c + 1
         for x in data :
            data_content.append(ord(x))
+           data_crc.append(ord(x))
+
+        if len(data_content) % 2 != 0:
+           data_content.append(0x00)
+           data_crc.append(0x00)
+
+        print("Data CRC: ",data_crc)
+        print("Data CRC out: ",calculate_byte_crc(data_crc))
+        data_content[5] = calculate_byte_crc(data_crc)
 
         cmp = eeprom_write.writeNBytes(self.file_db_address, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+        
+        self.add_file_to_TOC()
 
         pass
 
