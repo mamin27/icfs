@@ -11,6 +11,13 @@ from eeprom_math import hex_to_bytes,hex_to_2bytes,hex_to_3bytes,calculate_byte_
 
 #from i2c import i2c_io
 
+class StartEnd(object):
+    def __init__ (self, start=None, end=None) :
+       self.start = start
+       self.end = end
+    def out(self) :
+       return ([self.start,self.end])
+
 class EEPROM_FS(object):
 
     # Error message
@@ -58,11 +65,16 @@ class EEPROM_FS(object):
 
         self.toc_version_data = None
         self.toc_FreeMemorySize_data = None
+        self.toc_FileList_data = []
         self.toc_NumberOfFiles = None
         self.toc_NumberOfOrphanBlocks = None
         self.toc_NumberOfDeletedBlocks = None
         self.toc_NumberOfWriteBlocks = None
         self.toc_crc_data = None
+
+        self.file_db_address = 0x00
+        self.file_block = []
+        self.file_gap = []
 
         self.error_code = {}
 
@@ -229,9 +241,12 @@ class EEPROM_FS(object):
            self.toc_data = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
            self.toc_FreeMemorySize_data = self.toc_data [0]
            self.toc_NumberOfFiles_data = self.toc_data [1]
-           self.toc_FileList_data = self.toc_data [2:3]
+           self.toc_FileList_data = self.toc_data [2:4]
            stored_crc = str(hex(self.toc_data[4])) + str(hex(self.toc_data[5]))[2:]
            calc_crc = str(hex(calculate_2byte_crc(self.toc_data [:4])))
+           
+           print("TOC_Data: ",self.toc_data)
+           print("File List: ",self.toc_FileList_data)
 
            if (stored_crc == calc_crc) :
               #print ('TOC CRC16 is ok')
@@ -272,21 +287,23 @@ class EEPROM_FS(object):
            return (list(self.error_code.values())[-1])
 
         if self.chip_ic == '24c01' :
+                
+           if FileSize % self.block_size != 0 :
+              FileSize = FileSize + 1
 
            if self.toc_FreeMemorySize_data < FileSize:
               self.error_code['build_file_header'] = self.ERR_MEMORY_IS_FULL
               return self.error_code
-           else :
-              self.toc_FreeMemorySize_data = self.toc_FreeMemorySize_data - FileSize
-              if self.toc_FreeMemorySize_data % self.block_size != 0 :
-                 self.toc_FreeMemorySize_data = self.toc_FreeMemorySize_data + 1
+
+           self.fh_FilsSize = FileSize
+           self.file_matrix_24c01()
 
            element = bytearray()
            for x in filename :
               element = element + binascii.hexlify(bytes(x.encode()))
               tmp = element.decode('ascii')
            self.fh_filename_data = int(tmp,16)
-           envelope = hex_to_2bytes(self.fh_filename_data) + hex_to_bytes(filetype) + hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(0x40) # set Attribut InUse = 1, ReadOnly = 0
+           envelope = hex_to_2bytes(self.fh_filename_data) + hex_to_bytes(filetype) + hex_to_bytes(FileSize) + hex_to_bytes(0x40) # set Attribut InUse = 1, ReadOnly = 0
 
            self.fh_crc_data = calculate_byte_crc(envelope)
            #print (self.fh_crc_data)
@@ -340,6 +357,20 @@ class EEPROM_FS(object):
 
         return(self.fh_filetype)
 
+    def file_matrix_24c01(self):
+        print("matrix: ",self.toc_FileList_data)
+        
+        for x in self.toc_FileList_data :
+           if x != 0 :
+              self.file_block.append(StartEnd(start = x, end = 0x30 ))
+           else :
+              self.file_db_address = self.toc_DataBlock + 0
+              pass
+
+        #print("matrix_data: {}". format(self.file_block[0].out()))
+        #print("matrix_data: {}". format(self.file_block[1].out()))
+        pass
+
     def add_file_to_TOC(self, file_name, file_size, file_type, start_address):
         # Add file information to TOC
         pass
@@ -363,9 +394,15 @@ class EEPROM_FS(object):
         # read file data from chip
         pass
 
-    def write_file(self, file_name, data):
+    def write_file(self, data):
         # locate file in TOC
         # write data to chip
+        data_content = []
+        for x in data :
+           data_content.append(ord(x))
+
+        cmp = eeprom_write.writeNBytes(self.file_db_address, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+
         pass
 
     def delete_file(self, file_name):

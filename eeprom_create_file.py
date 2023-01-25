@@ -26,9 +26,8 @@ while True :
     if not raw_line:
         break
     FileSize = FileSize + len(raw_line)
-    
-    print (raw_line)
-    
+    file_data = raw_line
+
 f.close()
 
 tmp = filename
@@ -41,5 +40,9 @@ print ("FileType: {:02x}".format(filetype))
 print ("FileSize: {}".format(FileSize))
 
 toc.build_file_header(filename, filetype, FileSize, Option_RO = False)
+print (file_data)
+toc.write_file(file_data)
+
+
 
 print ("RC: {}".format(rc))
