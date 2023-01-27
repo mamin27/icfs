@@ -1,0 +1,10 @@
+--- # The I2C config file
+
+i2c:
+    smb: i2c-1 # set bus i2c-1
+    eeprom:
+      #ic: '24c256'
+      #slaveaddr: 0x57 # for eeprom (main i2c address)
+      ic: '24c01'
+      slaveaddr: 0x50
+      writestrobe: 26 # hold pin low to write to eeprom

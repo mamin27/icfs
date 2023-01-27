@@ -9,4 +9,5 @@ toc = eepromfs.EEPROM_FS()
 filename = 'data/AT.pdf'
 rc = toc.write_eepromfs(filename)
 
-print ("RC: {}".format(rc))
+print("Process Stats: {}".format(toc.error_code))
+#print ("RC: {}".format(rc))

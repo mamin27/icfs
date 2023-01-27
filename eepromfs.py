@@ -209,7 +209,7 @@ class EEPROM_FS(object):
         elif self.toc_version == 2 :
            self.toc_version_data = self.TOC_version[1:]
 
-        print (self.toc_version_data)
+        #print (self.toc_version_data)
 
         if self.chip_ic == '24c01' :
            self.toc_FreeMemorySize_data = 0x7F - self.toc_DataBlock + 1
@@ -227,7 +227,6 @@ class EEPROM_FS(object):
            toc_FreeMemorySize_data = self.hex_to_2bytes(self.toc_FreeMemorySize_data)
            data = self.TOC_version_data + toc_FreeMemorySize_data + [0x01,0x02,0x03]
            cmp = eeprom_write.writeNBytes(self.TOC_start_address, data, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
-
         pass
 
     def check_TOC(self):
@@ -343,7 +342,6 @@ class EEPROM_FS(object):
                    print("FreeMemorySize needs to sync")
            toc_NumberOfFiles_data_read = self.toc_data_content [1]
            if toc_NumberOfFiles_data_read != self.toc_NumberOfFiles_data :
-                   print (self.toc_NumberOfFiles_data)
                    cmp = eeprom_write.writeNBytes(self.TOC_start_address + 1, hex_to_bytes(self.toc_NumberOfFiles_data), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                    print("NumberOfFiles needs to sync")
            toc_FileList_data_read = self.toc_data_content [2:4]
@@ -395,8 +393,6 @@ class EEPROM_FS(object):
            #cmp = eeprom_write.writeNBytes(self.toc_DataBlock, data_wipe, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
 
            self.error_code['build_file_header'] = self.PASS
-
-        print("Error: {}".format(self.error_code))
 
         return (list(self.error_code.values())[-1], self.fh_build_data)
 
@@ -485,13 +481,15 @@ class EEPROM_FS(object):
            data_crc.append(ord(x))
 
         if len(data_content) % 2 != 0:
+           print("write_file append 0x00")
            data_content.append(0x00)
            data_crc.append(0x00)
 
-        print("Data CRC: ",data_crc)
+        #print("Data CRC: ",data_crc)
         print("Data CRC out: ",calculate_byte_crc(data_crc))
         data_content[5] = calculate_byte_crc(data_crc)
 
+        #print(data_content)
         cmp = eeprom_write.writeNBytes(self.file_db_address, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
         
         self.add_file_to_TOC()
@@ -507,21 +505,19 @@ class EEPROM_FS(object):
               if x != 0 :
                  self.fh_data_content = eeprom_read.readNBytes(x, x + 5, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                  self.fh_filename_data = ""
-                 print("load_file: ",self.fh_data_content)
                  for y in self.fh_data_content [:2] :
                     self.fh_filename_data = self.fh_filename_data + chr(y)
                  self.fh_filetype_data = self.code_filetype(self.fh_data_content [2],1)
-                 print (self.fh_filename_data,".",self.fh_filetype_data)
+                 #print (self.fh_filename_data,".",self.fh_filetype_data)
                  if (filename == self.fh_filename_data and filetype == self.fh_filetype_data) :
                     file_found = 1
                     self.fh_filesize_data = self.fh_data_content [3]
                     self.fh_attribute_data = self.fh_data_content [4]
                     self.fh_crc_data = self.fh_data_content [5]
-                    #print("File content: ",eeprom_read.readNBytes(x + 6, x + 6 + self.fh_filesize_data, self.busnum,self.chip_address,self.writestrobe,self.chip_ic))
-                    for z in eeprom_read.readNBytes(x + 6, x + 6 + self.fh_filesize_data, self.busnum,self.chip_address,self.writestrobe,self.chip_ic):
-                       print(z,chr(z))
+                    for z in eeprom_read.readNBytes(x + 6, x + 6 + self.fh_filesize_data -1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic):
+                       #print(z,chr(z))
                        self.file_data = self.file_data + chr(z)
-                    print (self.file_data)
+                    #print ("load_file: >",self.file_data,"<")
               else :
                  break
         
@@ -539,7 +535,9 @@ class EEPROM_FS(object):
         raw_line = list()
 
         f = open(filename,"r")
+        file_data = ""
         while True :
+           raw_line = ""
            try:
               raw_line = f.readline()
            except :
@@ -547,9 +545,11 @@ class EEPROM_FS(object):
 
            if not raw_line:
               break
+        
+           file_data = file_data + raw_line
+           #print (file_data)
 
            FileSize = FileSize + len(raw_line)
-           file_data = raw_line
 
         f.close()
 
@@ -563,13 +563,14 @@ class EEPROM_FS(object):
         print ("FileSize: {}".format(FileSize))
 
         self.build_file_header(filename, filetype, FileSize, Option_RO = False)
-        print (file_data)
+        #print (file_data)
         self.write_file(file_data)
-        self.error_code['write_eepromfs'] = self.FILE_WRITTEN 
+        self.error_code['write_eepromfs'] = self.FILE_WRITTEN
+
         return (list(self.error_code.values())[-1])
 
     def load_eepromfs(self, file_name) :
-        raw_line = list()
+        raw_line = ""
 
         pattern = '\/{1}(.*)\.(.*)$'
         match = re.search(pattern,file_name)
@@ -582,10 +583,13 @@ class EEPROM_FS(object):
         print(self.file_data) 
 
         f = open(file_name,"w")
-        try:
-           raw_line = f.writelines(self.file_data)
-        except :
-           self.error_code['write_eepromfs'] = self.ERR_WRITE_FILE
+        while True :
+           try:
+              raw_line = raw_line + f.writelines(self.file_data)
+           except :
+              self.error_code['load_eepromfs'] = self.ERR_WRITE_FILE
+           if not raw_line :
+              break
 
 
         FileSize = self.fh_filesize_data
@@ -594,7 +598,7 @@ class EEPROM_FS(object):
 
         print ("FileSize: {}".format(FileSize))
         
-        self.error_code['write_eepromfs'] = self.FILE_LOADED 
+        self.error_code['load_eepromfs'] = self.FILE_LOADED 
         return (list(self.error_code.values())[-1])
 
     def delete_file(self, file_name):

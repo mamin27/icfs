@@ -8,3 +8,5 @@ toc = eepromfs.EEPROM_FS()
 
 toc.build_TOC()
 toc.check_TOC()
+
+print("Process Stats: {}".format(toc.error_code))
