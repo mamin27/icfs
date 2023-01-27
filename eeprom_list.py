@@ -6,5 +6,5 @@ import eepromfs
 
 toc = eepromfs.EEPROM_FS()
 
-toc.build_TOC()
-toc.check_TOC()
+for i in toc.ls_eepromfs() :
+   print (i)

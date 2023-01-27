@@ -6,5 +6,7 @@ import eepromfs
 
 toc = eepromfs.EEPROM_FS()
 
-toc.build_TOC()
-toc.check_TOC()
+filename = 'data/AT.pdf'
+rc = toc.load_eepromfs(filename)
+
+print ("RC: {}".format(rc))

@@ -4,3 +4,8 @@ ft:
     'txt': 00
     'bin': 01
     'pdf': 02
+
+rft:
+    00  : 'txt'
+    01  : 'bin'
+    02  : 'pdf'
