@@ -8,7 +8,7 @@ def hex_to_2bytes(n):
         
 def hex_to_bytes(n):
     return [n & 0xff]
-        
+
 def calculate_2byte_crc(*data):
     calc = Calculator(Crc16.CCITT)
     return calc.checksum(data)
@@ -16,3 +16,6 @@ def calculate_2byte_crc(*data):
 def calculate_byte_crc(*data):
     calc = Calculator(Crc8.CCITT)
     return calc.checksum(data)
+
+def dec_to_list(n):
+    return [n]

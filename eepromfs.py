@@ -7,7 +7,7 @@ import RPi.GPIO as rGPIO
 from ecomet_i2c_sensors import i2c_command
 from ecomet_i2c_sensors.eeprom import chip_list,eeprom_write,eeprom_read
 from smbus2 import SMBus
-from eeprom_math import hex_to_bytes,hex_to_2bytes,hex_to_3bytes,calculate_byte_crc,calculate_2byte_crc
+from eeprom_math import hex_to_bytes,dec_to_list,hex_to_2bytes,hex_to_3bytes,calculate_byte_crc,calculate_2byte_crc
 
 #from i2c import i2c_io
 class rawline(object) :
@@ -37,6 +37,7 @@ class EEPROM_FS(object):
     ERR_CRC16_WRONG = 0x12
     ERR_FILE_NOT_FOUND = 0x13
     ERR_WRITE_FILE = 0x14
+    ERR_BUILD_FILE_HEADER = 0x15
 
     def __init__(self, chip_ic=None, chip_address=None, busnum=None, writestrobe=None, TOC_start_address=None, i2c=None, **kwargs) :
 
@@ -70,7 +71,7 @@ class EEPROM_FS(object):
         self.fh_crc = None # CRC, could be shared with Attributes and InUse
 
         self.fh_filename_data = 0x00
-        self.fh_build_data = None
+        self.fh_build_data = []
 
         self.toc_data_content = []
         self.fh_data_content = []
@@ -260,8 +261,8 @@ class EEPROM_FS(object):
               self.error_code['CRC16'] = self.CRC16_OK
               return (list(self.error_code.values())[-1])
 
-           #print ("Stored CRC: {:02x}{:02x}".format(self.toc_data_content[4],self.toc_data_content[5]))
-           #print ("Calculated CRC: {:04x}".format(calculate_2byte_crc(self.toc_data_content[:4])))
+           print ("Stored CRC: {:02x}{:02x}".format(self.toc_data_content[4],self.toc_data_content[5]))
+           print ("Calculated CRC: {:04x}".format(calculate_2byte_crc(self.toc_data_content[:4])))
 
         self.error_code['CRC16'] = self.ERR_CRC16_WRONG
         return (list(self.error_code.values())[-1])
@@ -326,9 +327,10 @@ class EEPROM_FS(object):
                  print ("FreeMemorySize: ",self.toc_FreeMemorySize_data - self.fh_filesize_data - 6)
                  self.toc_FreeMemorySize_data = self.toc_FreeMemorySize_data - self.fh_filesize_data - 6 
                  self.toc_NumberOfFiles_data = self.toc_NumberOfFiles_data + 1
-                 self.toc_FileList_data[x] = self.file_db_address
+                 self.toc_FileList_data[idx] = self.file_db_address
                  break
               idx = idx + 1
+           print ("--> sync_TOC")
            self.sync_TOC()
         pass
 
@@ -351,17 +353,18 @@ class EEPROM_FS(object):
                       cmp = eeprom_write.writeNBytes(self.TOC_start_address + idx, hex_to_bytes(x), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                       print("FileList[{}] needs to sync ..{:02x}".format(idx,x))
                       idx = idx + 1
-           calc_crc = calculate_2byte_crc(self.toc_data_content[:4])
-           print("calc_crc: ", calc_crc)
+           sync_data_content = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           calc_crc = calculate_2byte_crc(sync_data_content[:4])
+           print("calc_crc: {:04x}". format(calc_crc))
            cmp = eeprom_write.writeNBytes(self.TOC_start_address + 4, hex_to_2bytes(calc_crc), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           print ("sync written CRC")
         pass
 
     def build_file_header(self, filename, filetype, FileSize, Option_RO = None) :
 
-        self.check_TOC_crc()
-        if list(self.error_code.values())[-1] != self.PASS :
-           self.error_code['build_file_header'] = self.PASS
-           return (list(self.error_code.values())[-1])
+        if self.check_TOC_crc() != self.PASS:
+           self.error_code['build_file_header'] = self.ERR_CRC16_WRONG
+           return (list(self.error_code.values())[-1],None)
 
         if self.chip_ic == '24c01' :
                 
@@ -370,22 +373,24 @@ class EEPROM_FS(object):
 
            if self.toc_FreeMemorySize_data < FileSize:
               self.error_code['build_file_header'] = self.ERR_MEMORY_IS_FULL
-              return self.error_code
+              return (list(self.error_code.values())[-1], None)
 
            self.fh_filesize_data = FileSize
-           self.file_matrix_24c01()
+           print("File size: ",dec_to_list(self.fh_filesize_data))
 
            element = bytearray()
            for x in filename :
               element = element + binascii.hexlify(bytes(x.encode()))
               tmp = element.decode('ascii')
            self.fh_filename_data = int(tmp,16)
-           envelope = hex_to_2bytes(self.fh_filename_data) + hex_to_bytes(filetype) + hex_to_bytes(FileSize) + hex_to_bytes(0x40) # set Attribut InUse = 1, ReadOnly = 0
+           envelope = hex_to_2bytes(self.fh_filename_data) + hex_to_bytes(filetype) + dec_to_list(self.fh_filesize_data) + hex_to_bytes(0x40) # set Attribut InUse = 1, ReadOnly = 0
 
+           print ("Envelope: ",envelope)
            self.fh_crc_data = calculate_byte_crc(envelope)
            #print (self.fh_crc_data)
 
-           self.fh_build_data = envelope + hex_to_bytes(self.fh_crc_data)
+           self.fh_build_data.extend(envelope)
+           self.fh_build_data.extend(hex_to_bytes(self.fh_crc_data))
 
            print ("File Header: {}".format(self.fh_build_data))
 
@@ -395,6 +400,12 @@ class EEPROM_FS(object):
            self.error_code['build_file_header'] = self.PASS
 
         return (list(self.error_code.values())[-1], self.fh_build_data)
+
+    def read_file_header(self,fh_address) :
+
+        print("fh_address: ",fh_address)
+        if self.chip_ic == '24c01' :
+           return(eeprom_read.readNBytes(fh_address, fh_address + 5, self.busnum,self.chip_address,self.writestrobe,self.chip_ic))
 
         # File header size
         #        Filename,  FileType,    FileSize,   Attribute    CRC           TOC_SUM
@@ -437,15 +448,25 @@ class EEPROM_FS(object):
 
     def file_matrix_24c01(self):
         print("matrix: ",self.toc_FileList_data)
+        fh = []
         
         for x in self.toc_FileList_data :
            if x != 0 :
-              self.file_block.append(StartEnd(start = x, end = 0x30 ))
+              fh = self.read_file_header(x)
+              self.file_block.append(StartEnd(start = x, end = x + fh[3] + 6))
            else :
-              self.file_db_address = self.toc_DataBlock + 0
+              if self.file_block != []:
+                 print("Last Addr in Matrix: [{}]". format(','.join(hex(x) for x in self.file_block[-1].out())))
+                 self.file_db_address = self.file_block[-1].out()[1]
+              else :
+                 self.file_db_address = self.toc_DataBlock + 0
               pass
 
-        #print("matrix_data: {}". format(self.file_block[0].out()))
+        if self.file_block :
+           for x in range(len(self.file_block)) :
+              print("matrix_data: [{}]". format(','.join(hex(x) for x in self.file_block[x].out())))
+        
+        self.file_block.clear()
         #print("matrix_data: {}". format(self.file_block[1].out()))
         pass
 
@@ -489,10 +510,10 @@ class EEPROM_FS(object):
         print("Data CRC out: ",calculate_byte_crc(data_crc))
         data_content[5] = calculate_byte_crc(data_crc)
 
+        self.file_matrix_24c01()
+        self.add_file_to_TOC()
         #print(data_content)
         cmp = eeprom_write.writeNBytes(self.file_db_address, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
-        
-        self.add_file_to_TOC()
 
         pass
         
@@ -532,6 +553,7 @@ class EEPROM_FS(object):
     def write_eepromfs(self,filename) :
 
         FileSize = 0
+        rc = ()
         raw_line = list()
 
         f = open(filename,"r")
@@ -562,7 +584,10 @@ class EEPROM_FS(object):
         print ("FileType: {:02x}".format(filetype))
         print ("FileSize: {}".format(FileSize))
 
-        self.build_file_header(filename, filetype, FileSize, Option_RO = False)
+        rc = self.build_file_header(filename, filetype, FileSize, Option_RO = False)
+        if rc[0] > 0x0a :
+           self.error_code['write_eepromfs'] = self.ERR_BUILD_FILE_HEADER
+           return (list(self.error_code.values())[-1])
         #print (file_data)
         self.write_file(file_data)
         self.error_code['write_eepromfs'] = self.FILE_WRITTEN
