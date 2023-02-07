@@ -20,8 +20,42 @@ class StartEnd(object):
     def __init__ (self, start=None, end=None) :
        self.start = start
        self.end = end
+       self._class_size = 1
+       self._current_index = 0
+    def __iter__(self):
+       return self
+    def __next__(self):
+       if self._current_index <= self._class_size:
+          if self._current_index == 0 :
+             member = self.start
+          elif self._current_index == 1 :
+             member = self.end
+          self._current_index += 1
+          return member
+       raise StopIteration
     def out(self) :
        return ([self.start,self.end])
+
+class StartEndSize(object):
+    def __init__ (self, start=None, end=None, size = 0) :
+       self.start = start
+       self.end = end
+       self.size = end - start
+       self._class_size = 1
+       self._current_index = 0
+    def __iter__(self):
+       return self
+    def __next__(self):
+       if self._current_index <= self._class_size:
+          if self._current_index == 0 :
+             member = self.start
+          elif self._current_index == 1 :
+             member = self.end
+          self._current_index += 1
+          return member
+       raise StopIteration
+    def out(self) :
+       return ([self.start,self.end,self.size])
 
 class EEPROM_FS(object):
 
@@ -453,6 +487,7 @@ class EEPROM_FS(object):
         print("matrix: ",self.toc_FileList_data)
         fh = []
         self.file_block.clear()
+        self.file_gap.clear()
         
         for x in self.toc_FileList_data :
            if x != 0 :
@@ -466,9 +501,50 @@ class EEPROM_FS(object):
                  self.file_db_address = self.toc_DataBlock + 0
               pass
 
+        #self.file_gap.append(startEnd())
+        start = self.TOC_start_address + 6
+        end = 0x7f
+        for x in range(len(self.file_block)) :
+           v_start = start
+           v_end = end
+           (y_start,y_end) = self.file_block[x]
+           first = 0
+           for y in range (v_start,v_end) :
+              if y <= y_start :
+                 if first == 0 :
+                    #print ("address: {}".format(hex(y)))
+                    low = y
+                    first = 1
+              else :
+                 #print ("end address {}".format(hex(y-1)))
+                 high  = y - 1
+                 v_start = y_end
+                 break
+           self.file_gap.append(StartEndSize(start = low, end = high))
+           try :
+              (y_start,y_end) = self.file_block[x+1]
+           except :
+              v_start = y_end + 1
+              v_end = 0x7f
+              self.file_gap.append(StartEndSize(start = v_start, end = v_end))
+
+           #for y in range (v_start,v_end) :
+           #   print("x: {}{}".format(hex(y),hex(v_end)))
+           #   if y >= y_end :
+           #      print ("address: {}".format(hex(y)))
+           #   else :
+           #      print ("end address {}".format(hex(y)))
+           #      v_start = v_end
+           #      break
+           
+
         if self.file_block :
            for x in range(len(self.file_block)) :
               print("matrix_data: [{}]". format(','.join(hex(x) for x in self.file_block[x].out())))
+              
+        if self.file_gap :
+           for x in range(len(self.file_gap)) :
+              print("matrix_gap: [{}]". format(','.join(hex(x) for x in self.file_gap[x].out())))
         
         #print("matrix_data: {}". format(self.file_block[1].out()))
         pass
