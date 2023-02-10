@@ -104,6 +104,8 @@ class EEPROM_FS(object):
         self.fh_ModificationDate = None # Modification Data as TIMESTAMP from year 2023 (10 years) (FFF)-(1F)-(3F) (DAYS)-(HH)-(MM) => (DDDD DDDD DDDD DDDD DDDD DDDD)-(HHHH HHHH HXMM MMMM MMMM)b => 3 byte
         self.fh_CreationDate = None # Creation Data as TIMESTAMP from year 2023 (10 years) (FFF)-(1F)-(3F) (DAYS)-(HH)-(MM) => (DDDD DDDD DDDD DDDD DDDD DDDD)-(HHHH HHHH HXMM MMMM MMMM)b => 3 byte
         self.fh_crc = None # CRC, could be shared with Attributes and InUse
+        
+        self.mem_size = None
 
         self.fh_filename_data = 0x00
         self.fh_build_data = []
@@ -193,6 +195,7 @@ class EEPROM_FS(object):
         self.toc_crc = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_crc']
         self.toc_DataBlock = toc_config['eeprom_fs']['TOC_attributes'][self.chip_ic]['toc_DataBlock']
 
+        self.mem_size = toc_config['eeprom_fs']['Other'][self.chip_ic]['mem_size']
         self.fh_filename = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_filename']
         self.fh_filetype = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_filetype']
         self.fh_FilsSize = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_FilsSize']
@@ -235,7 +238,7 @@ class EEPROM_FS(object):
         # 24C1024 [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 1 byte], [ 1 byte], [ 270(90) byte], [ 240(8) byte],  [ 2 byte] =>  [ 532 bytes ], [ 32 bytes ]
         # 24C2048 [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 3 byte ], [ 1 byte], [ 1 byte], [ 360(120) byte], [ 300(10) byte],  [ 2 byte] =>  [ 682 bytes ], [ 40 bytes ]
 
-        self.toc_NumberOfFiles = 0
+        self.toc_NumberOfFiles_data = 0
         self.toc_NumberOfOrphanBlocks = 0
         self.toc_NumberOfDeletedBlocks = 0
         self.toc_NumberOfWriteBlocks = 0
@@ -247,9 +250,21 @@ class EEPROM_FS(object):
 
         #print (self.toc_version_data)
 
-        if self.chip_ic == '24c01' :
-           self.toc_FreeMemorySize_data = 0x7F - self.toc_DataBlock + 1
-           self.toc_data_content = hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles) + hex_to_2bytes(0x0000)
+        self.toc_FreeMemorySize_data = self.mem_size - self.toc_DataBlock + 1
+
+        if self.chip_ic in ('24c01','24c02') :
+           if self.chip_ic == '24c01' :
+              self.toc_data_content = hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles_data) + hex_to_2bytes(0x0000)
+           elif self.chip_ic == '24c02' :
+              self.toc_data_content = hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles_data) + hex_to_3bytes(0x0000)
+           self.toc_crc_data = calculate_2byte_crc(self.toc_data_content)
+           data_crc = self.toc_data_content + hex_to_2bytes(self.toc_crc_data)
+           data_wipe = []
+           for i in range(self.toc_FreeMemorySize_data) :
+              data_wipe = data_wipe + [0x11]
+           cmp = eeprom_write.writeNBytes(self.TOC_start_address, data_crc, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           cmp = eeprom_write.writeNBytes(self.toc_DataBlock, data_wipe, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+
            self.toc_crc_data = calculate_2byte_crc(self.toc_data_content)
            data_crc = self.toc_data_content + hex_to_2bytes(self.toc_crc_data)
            data_wipe = []
@@ -280,14 +295,14 @@ class EEPROM_FS(object):
 
         #print (self.toc_version_data)
 
-        if self.chip_ic == '24c01' :
+        if self.chip_ic in ('24c01','24c02') :
            self.toc_data_content = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
-           self.toc_FreeMemorySize_data = self.toc_data_content [0]
+           self.toc_FreeMemorySize_data = self.toc_data_content [self.toc_FreeMemorySize[0]]
            self.toc_NumberOfFiles_data = self.toc_data_content [1]
-           self.toc_FileList_data = self.toc_data_content [2:4]
-           stored_crc = "0x" + str("{:02x}".format(self.toc_data_content[4])) + str("{:02x}".format(self.toc_data_content[5]))#[2:]
-           calc_crc = str(hex(calculate_2byte_crc(self.toc_data_content[:4])))
-           
+           self.toc_FileList_data = self.toc_data_content [self.toc_FileList[0]:self.toc_FileList[0]+self.toc_FileList[1]+1]
+           stored_crc = "0x" + str("{:02x}".format(self.toc_data_content[self.toc_crc[0]])) + str("{:02x}".format(self.toc_data_content[self.toc_crc[0] + self.toc_crc[1]]))
+           calc_crc = str(hex(calculate_2byte_crc(self.toc_data_content[:self.toc_crc[0]])))
+
            print("TOC_Data: ",self.toc_data_content)
            print("File List: ",self.toc_FileList_data)
 
@@ -297,8 +312,8 @@ class EEPROM_FS(object):
               self.error_code['CRC16'] = self.CRC16_OK
               return (list(self.error_code.values())[-1])
 
-           print ("Stored CRC: {:02x}{:02x}".format(self.toc_data_content[4],self.toc_data_content[5]))
-           print ("Calculated CRC: {:04x}".format(calculate_2byte_crc(self.toc_data_content[:4])))
+           print ("Stored CRC: {:02x}{:02x}".format(self.toc_data_content[self.toc_crc[0]],self.toc_data_content[self.toc_crc[0] + self.toc_crc[1]]))
+           print ("Calculated CRC: {:04x}".format(calculate_2byte_crc(self.toc_data_content[:self.toc_crc[0]])))
 
         self.error_code['CRC16'] = self.ERR_CRC16_WRONG
         return (list(self.error_code.values())[-1])

@@ -8,20 +8,22 @@ eeprom_fs:
     # 24c01 [ 1 byte ], [ 1 byte ], [ 2(2) bytes], [ 2 byte ] => [ 6 bytes ], [ 2 bytes ]
       '24c01':
           block_size: 2
-          toc_FreeMemorySize: 1
-          toc_NumberOfFiles: 1
-          toc_FileList: 2
-          toc_crc: 2
+          toc_FreeMemorySize: [0x00,0]
+          toc_NumberOfFiles: [0x01,0]
+          toc_FileList: [0x02,1]
+          toc_crc: [0x04,1]
           toc_DataBlock: 0x06
+          mem_size: 0x7F
     #       FreeMemSize, NumofFiles, FileList,   CRC,           TOC_SUM      , Default Block Size
     # 24c02 [ 1 byte ], [ 1 byte ], [ 3(3) bytes], [ 2 byte ] => [ 7 bytes ], [ 2 bytes ]
-      24c02':
+      '24c02':
           block_size: 2
-          toc_FreeMemorySize: 1
-          toc_NumberOfFiles: 1
-          toc_FileList: 3
-          toc_crc: 2
-          toc_DataBlock: 10
+          toc_FreeMemorySize: [0x00,0]
+          toc_NumberOfFiles: [0x01,0]
+          toc_FileList: [0x02,2]
+          toc_crc: [0x05,1]
+          toc_DataBlock: 0x07
+          mem_size: 0xFF
     #       Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, FileList,        CRC,          TOC_SUM      , Default Block Size
     # 24c04 [ 2 byte ], [ 2 byte ], [ 1 byte ], [ 1 byte ], [ 1 byte], [ 1 byte], [ 12(6) byte],  [ 2 byte] =>  [ 22 bytes ], [ 4 bytes ]
       '24c04':
@@ -278,3 +280,9 @@ eeprom_fs:
           fh_Attributes: 2
           fh_ModificationDate: 3
           fh_CreationDate: 3
+
+    Other:
+      '24c01':
+          mem_size: 0x7F
+      '24c02':
+          mem_size: 0xFF
