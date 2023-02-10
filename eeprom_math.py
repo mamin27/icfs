@@ -1,11 +1,14 @@
 from crc import Calculator, Crc16, Crc8
 
+def hex_to_4bytes(n):
+    return [(n >> 24) & 0xff, (n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]
+
 def hex_to_3bytes(n):
     return [n >> 16, (n >> 8) & 0xff, n & 0xff]
-        
+
 def hex_to_2bytes(n):
     return [(n >> 8) & 0xff, n & 0xff]
-        
+
 def hex_to_bytes(n):
     return [n & 0xff]
 

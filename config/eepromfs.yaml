@@ -175,17 +175,19 @@ eeprom_fs:
     #        Filename,  FileType,    FileSize,   Attribute &   CRC           TOC_SUM
     # 24c01 [ 3 byte ], [ 1 byte ], [ 1 byte], [ 1 byte],               => [ 6 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
       '24c01':
-          fh_filename: 3
-          fh_filetype: 1
-          fh_FilsSize: 1
-          fh_Attributes: 1
+          fh_filename: [0x00,1]
+          fh_filetype: [0x02,0]
+          fh_FilsSize: [0x03,0]
+          fh_Attributes: [0x04,0]
+          fh_CRC: [0x05,0]
     #        Filename,  FileType,    FileSize,   Attribute &   CRC           TOC_SUM
     # 24c02 [ 4 byte ], [ 1 byte ], [ 1 byte], [ 1 byte],               => [ 7 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
       '24c02':
-          fh_filename: 4
-          fh_filetype: 1
-          fh_FilsSize: 1
-          fh_Attributes: 1
+          fh_filename: [0x00,3]
+          fh_filetype: [0x04,0]
+          fh_FilsSize: [0x05,0]
+          fh_Attributes: [0x06,0]
+          fh_CRC: [0x07,0]
     #        Filename,  FileType,    FileSize,   Attribute &   CRC           TOC_SUM
     # 24c04 [ 4 byte ], [ 1 byte ], [ 2 byte ], [ 1 byte],             => [ 8 bytes ]      [InUse,Read,CRC5,CRC4,CRC3,CRC2,CRC1,CRC0]
       '24c04':
