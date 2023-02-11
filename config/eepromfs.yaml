@@ -177,7 +177,7 @@ eeprom_fs:
       '24c01':
           fh_filename: [0x00,1]
           fh_filetype: [0x02,0]
-          fh_FilsSize: [0x03,0]
+          fh_FileSize: [0x03,0]
           fh_Attributes: [0x04,0]
           fh_CRC: [0x05,0]
     #        Filename,  FileType,    FileSize,   Attribute &   CRC           TOC_SUM
@@ -185,7 +185,7 @@ eeprom_fs:
       '24c02':
           fh_filename: [0x00,3]
           fh_filetype: [0x04,0]
-          fh_FilsSize: [0x05,0]
+          fh_FileSize: [0x05,0]
           fh_Attributes: [0x06,0]
           fh_CRC: [0x07,0]
     #        Filename,  FileType,    FileSize,   Attribute &   CRC           TOC_SUM

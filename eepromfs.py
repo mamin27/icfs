@@ -200,7 +200,7 @@ class EEPROM_FS(object):
         self.mem_size = toc_config['eeprom_fs']['Other'][self.chip_ic]['mem_size']
         self.fh_filename = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_filename']
         self.fh_filetype = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_filetype']
-        self.fh_FilsSize = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_FilsSize']
+        self.fh_FileSize = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_FileSize']
         self.fh_Attributes = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_Attributes']
         self.fh_CRC = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_CRC']
         if self.chip_ic in ['24c16','24c32','24c64','24c128','24c256','24c512','24c1024','24c2048']:
@@ -357,11 +357,12 @@ class EEPROM_FS(object):
                  file_info = eeprom_read.readNBytes(self.TOC_start_address + x, self.TOC_start_address + x + self.fh_CRC[0] + self.fh_CRC[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                  filename = ""
                  filetype = ""
-                 print ("test: ",file_info)
                  for y in file_info[:self.fh_filename[0] + self.fh_filename[1] + 1] :
                     filename = filename + chr(y)
                  filetype = self.code_filetype(file_info[self.fh_filetype[0]],1)
-                 fileSize = file_info[self.fh_FilsSize[0]]
+                 fileSize = file_info[self.fh_FileSize[0]]
+                 print (file_info)
+                 print ('fi:',file_info[self.fh_FileSize[0]])
                  #attribute = file_info[4]
                  list_files = rawline(str(fileSize) + "\t-rw " + filename + "." + filetype[0])
                  eepromfs_list.append(list_files.out())
@@ -435,6 +436,7 @@ class EEPROM_FS(object):
            print("File size: ",dec_to_list(self.fh_filesize_data))
 
            element = bytearray()
+           print(filename)
            for x in filename :
               element = element + binascii.hexlify(bytes(x.encode()))
               tmp = element.decode('ascii')
@@ -498,21 +500,21 @@ class EEPROM_FS(object):
               print(exc)
 
         if reverse == None :
-           self.fh_filetype = ft_config['ft'][filetype]
-           if self.fh_filetype is None:
-              self.fh_filetype = 0xFF
+           self.fh_filetype_data = ft_config['ft'][filetype]
+           if self.fh_filetype_data is None:
+              self.fh_filetype_data = 0xFF
         else :
            try :
-              self.fh_filetype = ft_config['rft'][filetype]
+              self.fh_filetype_data = ft_config['rft'][filetype]
            except:
               self.error_code['code_filetype'] = self.ERR_WRONG_FILETYPE
               return ('',list(self.error_code.values())[-1])
-           if self.fh_filetype is None:
-              self.fh_filetype = '.txt'
+           if self.fh_filetype_data is None:
+              self.fh_filetype_data = '.txt'
 
         c.close()
         self.error_code['code_filetype'] = self.FILETYPE_FIND
-        return(self.fh_filetype,list(self.error_code.values())[-1])
+        return(self.fh_filetype_data,list(self.error_code.values())[-1])
 
     def file_matrix_24c01(self):
         print("matrix: ",self.toc_FileList_data)
@@ -523,7 +525,7 @@ class EEPROM_FS(object):
         for x in self.toc_FileList_data :
            if x != 0 :
               fh = self.read_file_header(x)
-              self.file_block.append(StartEnd(start = x, end = x + fh[3] + self.fh_CRC[0]))   # end Start ob block data + file size + size of fh
+              self.file_block.append(StartEnd(start = x, end = x + fh[self.fh_FileSize[0]] + self.fh_CRC[0]))   # end Start ob block data + file size + size of fh
            else :
               if self.file_block != []:
                  print("Last Addr in Matrix: [{}]". format(','.join(hex(x) for x in self.file_block[-1].out())))
@@ -615,8 +617,8 @@ class EEPROM_FS(object):
 
     def get_file_from_TOC(self):
         # get file information from TOC
-        if self.chip_ic == '24c01' :
-           self.file_db_address_list  = eeprom_read.readNBytes(self.TOC_start_address + 2, self.TOC_start_address + 3, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+        if self.chip_ic in ('24c01','24c02') :
+           self.file_db_address_list  = eeprom_read.readNBytes(self.TOC_start_address + toc_FileList[0], self.TOC_start_address + toc_FileList[0] + toc_FileList[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
            self.toc_data_content = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
         pass
 
@@ -632,14 +634,17 @@ class EEPROM_FS(object):
         data_content = []
         data_crc = []
         c = 1
+        print('wf:',self.fh_build_data)
         for x in self.fh_build_data :
            data_content.append(x)
            if c <= (len(self.fh_build_data) - 2) :   #CRC & Attribute byte are excluded
               data_crc.append(x)
            c = c + 1
+        print('wf2:',data_content)
         for x in data :
            data_content.append(ord(x))
            data_crc.append(ord(x))
+        print('wf3:',data_content)
 
         if len(data_content) % 2 != 0:
            print("write_file append 0x00")
@@ -648,11 +653,11 @@ class EEPROM_FS(object):
 
         #print("Data CRC: ",data_crc)
         print("Data CRC out: ",calculate_byte_crc(data_crc))
-        data_content[5] = calculate_byte_crc(data_crc)
+        data_content[self.fh_CRC[0]] = calculate_byte_crc(data_crc)
 
         self.file_matrix_24c01()
         self.add_file_to_TOC()
-        #print(data_content)
+        print(data_content)
         cmp = eeprom_write.writeNBytes(self.file_db_address, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
 
         pass
@@ -750,7 +755,7 @@ class EEPROM_FS(object):
         f.close()
 
         tmp = filename
-        pattern = '^(.*)\.(.*)$'
+        pattern = '\/?(\w*)\.(.*)$'
         match = re.search(pattern,tmp)
         filename = match.group(1)
         filetype = self.code_filetype(match.group(2))
