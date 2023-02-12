@@ -12,6 +12,12 @@ def hex_to_2bytes(n):
 def hex_to_bytes(n):
     return [n & 0xff]
 
+def zero_to_bytes(byte_nr):
+    n = []
+    for x in range (byte_nr) :
+       n.append(0x00)
+    return n
+
 def calculate_2byte_crc(*data):
     calc = Calculator(Crc16.CCITT)
     return calc.checksum(data)

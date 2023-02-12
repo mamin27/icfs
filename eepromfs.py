@@ -7,7 +7,7 @@ import RPi.GPIO as rGPIO
 from ecomet_i2c_sensors import i2c_command
 from ecomet_i2c_sensors.eeprom import chip_list,eeprom_write,eeprom_read
 from smbus2 import SMBus
-from eeprom_math import hex_to_bytes,dec_to_list,hex_to_2bytes,hex_to_3bytes,hex_to_4bytes,calculate_byte_crc,calculate_2byte_crc
+from eeprom_math import hex_to_bytes,dec_to_list,hex_to_2bytes,hex_to_3bytes,hex_to_4bytes,calculate_byte_crc,calculate_2byte_crc,zero_to_bytes
 
 #from i2c import i2c_io
 class rawline(object) :
@@ -225,8 +225,8 @@ class EEPROM_FS(object):
 
         # TOC size
         #       FreeMemSize, NumofFiles, FileList,   CRC,           TOC_SUM      , Default Block Size
-        # 24C01 [ 1 byte ], [ 1 byte ], [ 2(2) bytes], [ 2 byte ] => [ 6 bytes ], [ 2 bytes ]
-        # 24C02 [ 1 byte ], [ 1 byte ], [ 3(3) bytes], [ 2 byte ] => [ 7 bytes ], [ 2 bytes ]
+        # 24C01 [ 1 byte ], [ 1 byte ], [ 3(3) bytes], [ 2 byte ] => [ 7 bytes ], [ 2 bytes ]
+        # 24C02 [ 1 byte ], [ 1 byte ], [ 6(6) bytes], [ 2 byte ] => [ 10 bytes ], [ 2 bytes ]
         #       Version,   FreeMemSize, NumOfFiles, NumOfOrp,   NumOfDel,  NumOfWrite, FileList,        CRC,          TOC_SUM      , Default Block Size
         # 24C04 [ 2 byte ], [ 2 byte ], [ 1 byte ], [ 1 byte ], [ 1 byte], [ 1 byte], [ 12(6) byte],  [ 2 byte] =>  [ 22 bytes ], [ 4 bytes ]
         # 24C08 [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte ], [ 2 byte], [ 2 byte], [ 20(10) byte], [ 2 byte] =>  [ 34 bytes ], [ 4 bytes ]
@@ -256,10 +256,7 @@ class EEPROM_FS(object):
         self.toc_FreeMemorySize_data = self.mem_size - self.toc_DataBlock + 1
 
         if self.chip_ic in ('24c01','24c02') :
-           if self.chip_ic == '24c01' :
-              self.toc_data_content = hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles_data) + hex_to_2bytes(0x0000)
-           elif self.chip_ic == '24c02' :
-              self.toc_data_content = hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles_data) + hex_to_3bytes(0x0000)
+           self.toc_data_content = hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles_data) + zero_to_bytes(self.toc_FileList[1] + 1)
            self.toc_crc_data = calculate_2byte_crc(self.toc_data_content)
            data_crc = self.toc_data_content + hex_to_2bytes(self.toc_crc_data)
            data_wipe = []
@@ -535,12 +532,15 @@ class EEPROM_FS(object):
               pass
 
         #self.file_gap.append(startEnd())
-        start = self.TOC_start_address + 6
-        end = 0x7f
+        start = self.TOC_start_address + self.toc_DataBlock
+        end = self.mem_size
+        skip = 0
+        v_start = start
+        v_end = end
+        
         for x in range(len(self.file_block)) :
-           v_start = start
-           v_end = end
-           (y_start,y_end) = self.file_block[x]
+           if skip == 0 :
+             (y_start,y_end) = self.file_block[x]
            first = 0
            for y in range (v_start,v_end) :
               if y <= y_start :
@@ -553,23 +553,16 @@ class EEPROM_FS(object):
                  high  = y - 1
                  v_start = y_end
                  break
-           self.file_gap.append(StartEndSize(start = low, end = high))
+           self.file_gap.append(StartEndSize(start = low, end = high, size = (high - low)))
+           #print("Gap in Matrix: [{}]". format(','.join(hex(x) for x in self.file_gap[-1].out())))
            try :
               (y_start,y_end) = self.file_block[x+1]
+              skip = 1
            except :
+              skip = 0
               v_start = y_end + 1
-              v_end = 0x7f
-              self.file_gap.append(StartEndSize(start = v_start, end = v_end))
-
-           #for y in range (v_start,v_end) :
-           #   print("x: {}{}".format(hex(y),hex(v_end)))
-           #   if y >= y_end :
-           #      print ("address: {}".format(hex(y)))
-           #   else :
-           #      print ("end address {}".format(hex(y)))
-           #      v_start = v_end
-           #      break
-           
+              v_end = self.mem_size
+              self.file_gap.append(StartEndSize(start = v_start, end = v_end, size = v_start - v_end))
 
         if self.file_block :
            for x in range(len(self.file_block)) :
@@ -578,8 +571,7 @@ class EEPROM_FS(object):
         if self.file_gap :
            for x in range(len(self.file_gap)) :
               print("matrix_gap: [{}]". format(','.join(hex(x) for x in self.file_gap[x].out())))
-        
-        #print("matrix_data: {}". format(self.file_block[1].out()))
+
         pass
 
     def remove_file_from_TOC(self,offset):
