@@ -578,26 +578,26 @@ class EEPROM_FS(object):
         # delete file information from TOC
         idx = 0
         vshift = 0
-        if self.chip_ic == '24c01' :
+        if self.chip_ic in ('24c01','24c02') :
            print("remove_file_from_TOC")
            self.get_file_from_TOC()
-           self.toc_NumberOfFiles_data = self.toc_data_content [1]
-           self.toc_FreeMemorySize_data = self.toc_data_content [0]
+           self.toc_NumberOfFiles_data = self.toc_data_content [self.toc_NumberOfFiles[0]]
+           self.toc_FreeMemorySize_data = self.toc_data_content [self.toc_FreeMemorySize[0]]
            for x in self.file_db_address_list :
               if (idx == offset or vshift == 1) :
                  vshift = 1
                  print ("address: ",idx,x)
                  if (idx > offset) :
                     print("shift <-: ", x)
-                    eeprom_write.writeNBytes(self.TOC_start_address + 2 + (idx - 1), hex_to_bytes(x), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                    eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FileList[0] + (idx - 1), hex_to_bytes(x), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                     print("set to 0", x)
-                    eeprom_write.writeNBytes(self.TOC_start_address + 2 + idx, hex_to_bytes(0x00), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                    eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FileList[0] + idx, hex_to_bytes(0x00), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                  elif (idx == offset) :
                     print("set to 0", x)
-                    eeprom_write.writeNBytes(self.TOC_start_address + 2 + idx, hex_to_bytes(0x00), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                    eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FileList[0] + idx, hex_to_bytes(0x00), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                     self.toc_NumberOfFiles_data = self.toc_NumberOfFiles_data - 1
                     #print (self.toc_FreeMemorySize_data, self.fh_filesize_data)
-                    self.toc_FreeMemorySize_data = self.toc_FreeMemorySize_data + self.fh_filesize_data + 6
+                    self.toc_FreeMemorySize_data = self.toc_FreeMemorySize_data + self.fh_filesize_data + self.fh_CRC[0] + 1
                  elif ( x == 0 ) :
                     break
                  idx = idx + 1
@@ -691,27 +691,27 @@ class EEPROM_FS(object):
         file_found = 0
         idx = 0
            
-        if self.chip_ic == '24c01' :
+        if self.chip_ic in ('24c01','24c02') :
            for x in self.file_db_address_list :
               if x != 0 :
-                 self.fh_data_content = eeprom_read.readNBytes(x, x + 5, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                 self.fh_data_content = eeprom_read.readNBytes(x, x + self.fh_CRC[0] + self.fh_CRC[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                  self.fh_filename_data = ""
-                 for y in self.fh_data_content [:2] :
-                    self.fh_filename_data = self.fh_filename_data + chr(y)
-                 self.fh_filetype_data = self.code_filetype(self.fh_data_content [2],1)
-                 #print (self.fh_filename_data,".",self.fh_filetype_data)
-                 if (filename == self.fh_filename_data and filetype == self.fh_filetype_data) :
+                 for y in self.fh_data_content [:self.fh_filename[0] + self.fh_filename[1] + 1] :
+                    if y != 0x00 :
+                       self.fh_filename_data = self.fh_filename_data + chr(y)
+                 self.fh_filetype_data = self.code_filetype(self.fh_data_content [self.fh_filetype[0]],1)
+                 #print (self.fh_filename_data,".",self.fh_filetype_data[0])
+                 if (filename == self.fh_filename_data and filetype == self.fh_filetype_data[0]) :
                     file_found = 1
-                    self.fh_filesize_data = self.fh_data_content [3]
-                    self.fh_attribute_data = self.fh_data_content [4]
-                    self.fh_crc_data = self.fh_data_content [5]
+                    self.fh_filesize_data = self.fh_data_content [self.fh_FileSize[0]]
+                    self.fh_attribute_data = self.fh_data_content [self.fh_Attributes[0]]
+                    self.fh_crc_data = self.fh_data_content [self.fh_CRC[0]]
                     idx_left = idx
                  else :
                     idx = idx + 1
               else :
                  break
-        
-              
+
         if file_found == 0 :
            self.error_code['remove_file'] = self.ERR_FILE_NOT_FOUND
         else :
