@@ -68,13 +68,13 @@ class EEPROM_FS(object):
     FILE_REMOVED = 0x05
     FILETYPE_FIND = 0x06
 
-    ERR_TOC_INCOSISTENT = 0x10
-    ERR_MEMORY_IS_FULL  = 0x11
-    ERR_CRC16_WRONG = 0x12
-    ERR_FILE_NOT_FOUND = 0x13
-    ERR_WRITE_FILE = 0x14
-    ERR_BUILD_FILE_HEADER = 0x15
-    ERR_WRONG_FILETYPE = 0x16
+    ERR_TOC_INCOSISTENT = 0xa0
+    ERR_MEMORY_IS_FULL  = 0xa1
+    ERR_CRC16_WRONG = 0xa2
+    ERR_FILE_NOT_FOUND = 0xa3
+    ERR_WRITE_FILE = 0xa4
+    ERR_BUILD_FILE_HEADER = 0xa5
+    ERR_WRONG_FILETYPE = 0xa6
 
     def __init__(self, chip_ic=None, chip_address=None, busnum=None, writestrobe=None, TOC_start_address=None, i2c=None, **kwargs) :
 
@@ -610,7 +610,7 @@ class EEPROM_FS(object):
     def get_file_from_TOC(self):
         # get file information from TOC
         if self.chip_ic in ('24c01','24c02') :
-           self.file_db_address_list  = eeprom_read.readNBytes(self.TOC_start_address + toc_FileList[0], self.TOC_start_address + toc_FileList[0] + toc_FileList[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           self.file_db_address_list  = eeprom_read.readNBytes(self.TOC_start_address + self.toc_FileList[0], self.TOC_start_address + self.toc_FileList[0] + self.toc_FileList[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
            self.toc_data_content = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
         pass
 
@@ -658,21 +658,21 @@ class EEPROM_FS(object):
         self.fh_filename_data = self.get_file_from_TOC()
         file_found = 0
            
-        if self.chip_ic == '24c01' :
+        if self.chip_ic in ('24c01','24c02') :
            for x in self.file_db_address_list :
               if x != 0 :
-                 self.fh_data_content = eeprom_read.readNBytes(x, x + 5, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                 self.fh_data_content = eeprom_read.readNBytes(x, x + self.fh_CRC[0] + self.fh_CRC[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                  self.fh_filename_data = ""
-                 for y in self.fh_data_content [:2] :
-                    self.fh_filename_data = self.fh_filename_data + chr(y)
-                 self.fh_filetype_data = self.code_filetype(self.fh_data_content [2],1)
-                 #print (self.fh_filename_data,".",self.fh_filetype_data)
-                 if (filename == self.fh_filename_data and filetype == self.fh_filetype_data) :
+                 for y in self.fh_data_content [:self.fh_filename[0] + self.fh_filename[1] + 1] :
+                    if y != 0x00 :
+                       self.fh_filename_data = self.fh_filename_data + chr(y)
+                 self.fh_filetype_data = self.code_filetype(self.fh_data_content [self.fh_filetype[0]],1)
+                 if (filename == self.fh_filename_data and filetype == self.fh_filetype_data[0]) :
                     file_found = 1
-                    self.fh_filesize_data = self.fh_data_content [3]
-                    self.fh_attribute_data = self.fh_data_content [4]
-                    self.fh_crc_data = self.fh_data_content [5]
-                    for z in eeprom_read.readNBytes(x + 6, x + 6 + self.fh_filesize_data -1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic):
+                    self.fh_filesize_data = self.fh_data_content [self.fh_FileSize[0]]
+                    self.fh_attribute_data = self.fh_data_content [self.fh_Attributes[0]]
+                    self.fh_crc_data = self.fh_data_content [self.fh_CRC[0]]
+                    for z in eeprom_read.readNBytes(x + self.fh_CRC[0] + 1, x + self.fh_CRC[0] + 1 + self.fh_filesize_data -1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic):
                        #print(z,chr(z))
                        self.file_data = self.file_data + chr(z)
                     #print ("load_file: >",self.file_data,"<")
@@ -775,8 +775,11 @@ class EEPROM_FS(object):
         print ("FileName: {}".format(filename))
         print ("FileType: {}".format(filetype))
 
-        self.load_file(filename, filetype)
-        print(self.file_data) 
+        if self.load_file(filename, filetype) >= 0xa0 :
+           self.error_code['load_eepromfs'] = self.ERR_FILE_NOT_FOUND
+           return (list(self.error_code.values())[-1])
+        else :
+           self.error_code['load_eepromfs'] = self.FILE_FOUND
 
         f = open(file_name,"w")
         while True :
