@@ -67,6 +67,7 @@ class EEPROM_FS(object):
     FILE_FOUND = 0x04
     FILE_REMOVED = 0x05
     FILETYPE_FIND = 0x06
+    DEFRAGMENT_OK = 0x07
 
     ERR_TOC_INCOSISTENT = 0xa0
     ERR_MEMORY_IS_FULL  = 0xa1
@@ -75,6 +76,7 @@ class EEPROM_FS(object):
     ERR_WRITE_FILE = 0xa4
     ERR_BUILD_FILE_HEADER = 0xa5
     ERR_WRONG_FILETYPE = 0xa6
+    DEFRAGMENT_NOK = 0xa7
 
     def __init__(self, chip_ic=None, chip_address=None, busnum=None, writestrobe=None, TOC_start_address=None, i2c=None, **kwargs) :
 
@@ -108,6 +110,8 @@ class EEPROM_FS(object):
         self.fh_CRC = None # CRC, could be shared with Attributes and InUse
         
         self.mem_size = None
+        self.size_end_block = 0
+        self.size_spread = 0
 
         self.fh_filename_data = 0x00
         self.fh_build_data = []
@@ -300,8 +304,8 @@ class EEPROM_FS(object):
            self.toc_FreeMemorySize_data = self.toc_data_content [self.toc_FreeMemorySize[0]]
            self.toc_NumberOfFiles_data = self.toc_data_content [self.toc_NumberOfFiles[0]]
            self.toc_FileList_data = self.toc_data_content [self.toc_FileList[0]:self.toc_FileList[0]+self.toc_FileList[1]+1]
-           stored_crc = "0x" + str("{:02x}".format(self.toc_data_content[self.toc_crc[0]])) + str("{:02x}".format(self.toc_data_content[self.toc_crc[0] + self.toc_crc[1]]))
-           calc_crc = str(hex(calculate_2byte_crc(self.toc_data_content[:self.toc_crc[0]])))
+           stored_crc = str("{:02x}".format(self.toc_data_content[self.toc_crc[0]])) + str("{:02x}".format(self.toc_data_content[self.toc_crc[0] + self.toc_crc[1]]))
+           calc_crc = str("{:04x}".format(calculate_2byte_crc(self.toc_data_content[:self.toc_crc[0]])))
 
            print("TOC_Data: ",self.toc_data_content)
            print("File List: ",self.toc_FileList_data)
@@ -369,6 +373,21 @@ class EEPROM_FS(object):
         eepromfs_list.append(list_files.out())
         list_files = rawline("Free\t" + str(len(self.toc_FileList_data) - self.toc_NumberOfFiles_data) + "/" + str(len(self.toc_FileList_data)) + " File")
         eepromfs_list.append(list_files.out())
+
+        # option
+        self.file_matrix_24c01()
+
+        self.size_spread = 0
+        if self.file_gap != [] :
+          self.size_end_block = self.file_gap[-1].out()[2]
+          for x in range(len(self.file_gap)) :
+             self.size_spread = self.size_spread + self.file_gap[x].out()[2]
+        else :
+          self.size_end_block = self.toc_FreeMemorySize_data
+          self.size_spread = 0
+
+        print("Size_End_Block: ",hex(self.size_end_block))
+        print("Size_Spread: ",hex(self.size_spread))
 
         return (eepromfs_list)
 
@@ -574,6 +593,10 @@ class EEPROM_FS(object):
 
         pass
 
+    def defragment_matrix(self):
+        self.error_code['defragment_matrix'] = self.DEFRAGMENT_NOK
+        return(list(self.error_code.values())[-1])
+
     def remove_file_from_TOC(self,offset):
         # delete file information from TOC
         idx = 0
@@ -648,11 +671,35 @@ class EEPROM_FS(object):
         data_content[self.fh_CRC[0]] = calculate_byte_crc(data_crc)
 
         self.file_matrix_24c01()
+
+        if self.file_gap != [] :
+          self.size_end_block = self.file_gap[-1].out()[2]
+          for x in range(len(self.file_gap)) :
+             self.size_spread = self.size_spread + self.file_gap[x].out()[2]
+        else :
+          self.size_end_block = self.toc_FreeMemorySize_data
+          self.size_spread = 0
+
+        calc_write_bytes = len(data_content)
+
+        print("Size_End_Block: ",hex(self.size_end_block))
+        print("Size_Spread: ",hex(self.size_spread))
+        print("Calc_WriteBytes: ", hex(calc_write_bytes))
+
+        if calc_write_bytes > self.size_end_block :
+           if calc_write_bytes <= self.size_spread :
+              if self.defragment_matrix() >= 0x0a :
+                 self.error_code['write_file'] = self.DEFRAGMENT_NOK
+                 return(list(self.error_code.values())[-1])
+           else : self.error_code['write_file'] = self.ERR_MEMORY_IS_FULL
+
         self.add_file_to_TOC()
+
         print(data_content)
         cmp = eeprom_write.writeNBytes(self.file_db_address, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
 
-        pass
+        self.error_code['write_file'] = self.FILE_WRITTEN
+        return(list(self.error_code.values())[-1])
         
     def load_file(self, filename, filetype) :
         self.fh_filename_data = self.get_file_from_TOC()
@@ -760,7 +807,9 @@ class EEPROM_FS(object):
            self.error_code['write_eepromfs'] = self.ERR_BUILD_FILE_HEADER
            return (list(self.error_code.values())[-1])
         #print (file_data)
-        self.write_file(file_data)
+        if self.write_file(file_data) > 0x0a :
+           self.error_code['write_eepromfs'] = self.ERR_BUILD_FILE_HEADER
+           return (list(self.error_code.values())[-1])
         self.error_code['write_eepromfs'] = self.FILE_WRITTEN
 
         return (list(self.error_code.values())[-1])
@@ -768,7 +817,7 @@ class EEPROM_FS(object):
     def load_eepromfs(self, file_name) :
         raw_line = ""
 
-        pattern = '\/{1}(.*)\.(.*)$'
+        pattern = '\/{0,1}(.*)\.(.*)$'
         match = re.search(pattern,file_name)
         filename = match.group(1)
         filetype = match.group(2)
