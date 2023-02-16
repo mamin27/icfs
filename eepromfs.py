@@ -541,17 +541,17 @@ class EEPROM_FS(object):
         for x in self.toc_FileList_data :
            if x != 0 :
               fh = self.read_file_header(x)
-              self.file_block.append(StartEnd(start = x, end = x + fh[self.fh_FileSize[0]] + self.fh_CRC[0]))   # end Start ob block data + file size + size of fh
+              self.file_block.append(StartEnd(start = x, end = x + fh[self.fh_FileSize[0]] + self.fh_CRC[0] - 1))   # end Start ob block data + file size + size of fh
            else :
               if self.file_block != []:
                  print("Last Addr in Matrix: [{}]". format(','.join(hex(x) for x in self.file_block[-1].out())))
-                 self.file_db_address = self.file_block[-1].out()[1]
+                 self.file_db_address = self.file_block[-1].out()[1] + 1
               else :
                  self.file_db_address = self.toc_DataBlock + 0
               pass
 
         #self.file_gap.append(startEnd())
-        start = self.TOC_start_address + self.toc_DataBlock
+        start = self.TOC_start_address + self.toc_DataBlock - 1
         end = self.mem_size
         skip = 0
         v_start = start
@@ -593,7 +593,48 @@ class EEPROM_FS(object):
 
         pass
 
-    def defragment_matrix(self):
+    def defragment_matrix(self, data_content):
+        sum = 0
+        idx = 0
+        move_idx = 0
+        print ("Data Content: ", data_content)
+        for x in self.file_gap :
+           sum = sum + x.out()[2]
+           print ("SUM: {}:{}".format(hex(sum), hex(len(data_content))))
+           if sum >= len(data_content) :
+              print("Final idx: ", idx)
+              break
+           if sum == 1 :
+              move_idx = move_idx + 1
+              print ("move_idx: ", move_idx)
+           idx = idx + 1
+        print ("IDX: ", idx, move_idx)
+        if move_idx == 1 :
+           self.file_db_address = self.file_gap[idx].out()[0] + 1
+           print ("Just addr new file in GAP, move FileList in TOC")
+           print ("Calc Addr: ",hex(self.file_db_address))
+           print ("File Data Content: ", data_content)
+           cmp = eeprom_write.writeNBytes(self.file_db_address, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           print ("Before FileList: [{}]". format(','.join(hex(z) for z in self.toc_FileList_data)))
+           sub_content = [self.file_db_address]
+           write_address = idx
+           for y in self.toc_FileList_data[idx:] :
+              print ("idx: ",idx)
+              if y != 0 and idx <= self.toc_DataBlock - 2:
+                 sub_content.append(y)
+                 print (y)
+                 idx = idx + 1
+              else :
+                 break
+           print ("Sub content: [{}]". format(','.join(hex(z) for z in sub_content)))
+           self.toc_FreeMemorySize_data = self.toc_FreeMemorySize_data - len(data_content)
+           self.toc_NumberOfFiles_data = self.toc_NumberOfFiles_data + 1
+           cmp = eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FreeMemorySize[0], hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles_data), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           cmp = eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FileList[0] + write_address, sub_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           self.sync_TOC()
+           self.error_code['defragment_matrix'] = self.FILE_WRITTEN
+        else :
+           print ("Move blocks and then add File")
         self.error_code['defragment_matrix'] = self.DEFRAGMENT_NOK
         return(list(self.error_code.values())[-1])
 
@@ -688,7 +729,7 @@ class EEPROM_FS(object):
 
         if calc_write_bytes > self.size_end_block :
            if calc_write_bytes <= self.size_spread :
-              if self.defragment_matrix() >= 0x0a :
+              if self.defragment_matrix(data_content) >= 0x0a :
                  self.error_code['write_file'] = self.DEFRAGMENT_NOK
                  return(list(self.error_code.values())[-1])
            else : self.error_code['write_file'] = self.ERR_MEMORY_IS_FULL
