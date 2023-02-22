@@ -8,10 +8,12 @@
 ./eeprom_write_file.py -f data/DD.pdf
 ./eeprom_write_file.py -f data/GG.txt
 
-#./eeprom_list.py
+./eeprom_list.py
 
-./eeprom_remove_file.py -f 'AAAA.txt'
+./eeprom_remove_file.py -f 'AT.pdf'
+./eeprom_remove_file.py -f 'DD.pdf'
 
+./eeprom_write_file.py -f data/FF.pdf
 ./eeprom_write_file.py -f data/EE.pdf
 
 ./eeprom_list.py

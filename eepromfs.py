@@ -610,6 +610,7 @@ class EEPROM_FS(object):
            print ("SUM: {}:{}".format(hex(sum), hex(len(data_content))))
            if sum >= len(data_content) :
               print("Final idx: ", idx)
+              idx = idx - 1
               break
            if x.out()[2] == 1 :
               move_idx = move_idx + 1
@@ -624,48 +625,67 @@ class EEPROM_FS(object):
         print ("SUM: {}:{}".format(hex(sum), hex(len(data_content) )))
         print ("IDX_LIST: {}:{}:{} Addr: {}".format(idx, move_idx, first_idx, hex(first_addr)))
         if move_idx == 1 :
-           self.file_db_address = first_addr
            print ("Just addr new file in GAP, move FileList in TOC")
-           print ("Calc Addr: ",hex(self.file_db_address))
-           print ("File Data Content: ", data_content)
-           cmp = eeprom_write.writeNBytes(self.file_db_address, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           #print ("File Data Content: ", data_content)
+           pointer = idx
            print ("Before FileList: [{}]". format(','.join(hex(z) for z in self.toc_FileList_data)))
-           sub_content = self.toc_FileList_data
-           self.toc_FileList_data = sub_content[0:(idx-1)] + [self.file_db_address] + sub_content[-(self.toc_FileList[1] + idx -2):-1]
-           print ("After FileList: [{}]". format(','.join(hex(z) for z in self.toc_FileList_data)))
-           #lst[0:1] + [0] + lst[-5:-1]
+           print('matrix_idx: ',pointer)
+           for x in range (len(self.toc_FileList_data) - 1,pointer - 1,-1) :
+              print('x: ',x)
+              if self.toc_FileList_data[x] != 0 :
+                 self.toc_FileList_data[x+1] = self.toc_FileList_data[x]
+              else :
+                 print('else')
+                 next
+           first_address = self.file_block[x-1].out()[1] + 1
+           print ("Calc Addr: ",hex(self.file_db_address))
+           self.toc_FileList_data[x] = first_address
+           cmp = eeprom_write.writeNBytes(first_address, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
            cmp = eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FileList[0], self.toc_FileList_data, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
            print ("After FileList: [{}]". format(','.join(hex(z) for z in self.toc_FileList_data)))
-           print ("Sub content: [{}]". format(','.join(hex(z) for z in sub_content)))
            self.toc_FreeMemorySize_data = self.toc_FreeMemorySize_data - len(data_content)
            self.toc_NumberOfFiles_data = self.toc_NumberOfFiles_data + 1
            cmp = eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FreeMemorySize[0], hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles_data), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
            self.sync_TOC()
            self.error_code['defragment_matrix'] = self.DEFRAGMENT_INGAP
         elif sum >= len(data_content):
-           self.file_db_address = first_addr
+           matrix_data = []
+           pointer = len (self.file_block) - idx
+           print ("Pointer: ",pointer)
            print ("Before FileList: [{}]". format(','.join(hex(z) for z in self.toc_FileList_data)))
-           print ("Move blocks and then add File")
-           gap_move = []
-           for x in range(first_idx,idx) :
-              #if self.file_gap[x].out()[2] != 1 :
-              gap_move.append(self.file_block[x].out())
-           print ("Calc Addr: ",hex(self.file_db_address))
-           for x in gap_move :
-              #print ("Move gap: {}:{}". format(hex(x[0]),hex(x[1])))
-              move_block = eeprom_read.readNBytes(x[0], x[1] + 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
-              print ("Moved block: [{}]". format(','.join(hex(z) for z in move_block)))
-              cmp = eeprom_write.writeNBytes(self.file_db_address, move_block, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
-              self.toc_FileList_data[first_idx] = self.file_db_address
-              print ("List address[{}] = {}".format(hex(self.TOC_start_address + self.toc_FileList[0] + first_idx),hex(self.file_db_address)))
-              first_idx = first_idx + 1
-              self.file_db_address = self.file_db_address + len(move_block) - 1
-           self.toc_FileList_data[first_idx] = self.file_db_address
-           cmp = eeprom_write.writeNBytes(self.file_db_address, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
-           print ("New File data content: [{}]". format(','.join(hex(z) for z in data_content)))
-           print ("Read Data1: {}".format(eeprom_read.readNBytes(self.file_db_address, self.file_db_address + len(data_content), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)))
-           cmp = eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FileList[0], self.toc_FileList_data, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           matrix_idx = 0
+           offset = 0
+           for x in reversed(self.file_block) :
+              print('matrix_idx: ',matrix_idx,idx)
+              if pointer > matrix_idx :
+                 matrix_data.append(StartEnd(start=x.out()[0],end=x.out()[1]))
+                 print ("Matrix_data: [{}]". format(','.join(hex(z) for z in x.out())))
+              elif self.file_gap[idx].out()[2] != 1 :
+                 offset = offset + self.file_gap[idx].out()[2] - 1
+                 print("Offset: ", hex(offset))
+                 move_block = eeprom_read.readNBytes(x.out()[0], x.out()[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                 matrix_data.append(StartEnd(start=x.out()[0] + offset,end=x.out()[1] + offset))
+                 cmp = eeprom_write.writeNBytes(x.out()[0] + offset, move_block, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                 print ("Matrix_data: [{}]". format(','.join(hex(z + offset) for z in x.out())))
+                 idx = idx - 1
+              else :
+                 print("Offset: ", hex(offset))
+                 move_block = eeprom_read.readNBytes(x.out()[0], x.out()[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                 matrix_data.append(StartEnd(start=x.out()[0] + offset,end=x.out()[1] + offset))
+                 cmp = eeprom_write.writeNBytes(x.out()[0] + offset, move_block, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                 print ("Matrix_data: [{}]". format(','.join(hex(z + offset) for z in x.out())))
+                 idx = idx - 1   
+              matrix_idx = matrix_idx + 1
+           matrix_data.append(StartEnd(start=0x0a,end=0x0a + len(data_content)))
+           cmp = eeprom_write.writeNBytes(0x0a, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           y = 0
+           for x in reversed(matrix_data) :
+              self.toc_FileList_data[y] = x.out()[0]
+              y = y + 1
            print ("After FileList: [{}]". format(','.join(hex(z) for z in self.toc_FileList_data)))
+           cmp = eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FileList[0], self.toc_FileList_data, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           for x in range(len(matrix_data)) :
+              print ("Matrix: [{}]". format(','.join(hex(z) for z in matrix_data[x].out())))
            self.toc_FreeMemorySize_data = self.toc_FreeMemorySize_data - len(data_content)
            self.toc_NumberOfFiles_data = self.toc_NumberOfFiles_data + 1
            cmp = eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FreeMemorySize[0], hex_to_bytes(self.toc_FreeMemorySize_data) + hex_to_bytes(self.toc_NumberOfFiles_data), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)

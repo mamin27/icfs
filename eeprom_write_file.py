@@ -34,8 +34,8 @@ if __name__ == '__main__' :
 
    toc = eepromfs.EEPROM_FS()
 
-   if filename == None :
-      filename = 'data/AT.pdf'
+   #if filename == None :
+   #   filename = 'data/AT.pdf'
    rc = toc.write_eepromfs(filename)
 
    print("Process Stats: {}".format(toc.error_code))
