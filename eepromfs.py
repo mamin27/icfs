@@ -76,20 +76,24 @@ class EEPROM_FS(object):
     ERR_MEMORY_IS_FULL  = 0xa1
     ERR_CRC16_WRONG = 0xa2
     ERR_FILE_NOT_FOUND = 0xa3
-    ERR_WRITE_FILE = 0xa4
-    ERR_BUILD_FILE_HEADER = 0xa5
-    ERR_WRONG_FILETYPE = 0xa6
-    DEFRAGMENT_NOK = 0xa7
+    ERR_FILE_NOT_REMOVED = 0xa4
+    ERR_WRITE_FILE = 0xa5
+    ERR_BUILD_FILE_HEADER = 0xa6
+    ERR_WRONG_FILETYPE = 0xa7
+    DEFRAGMENT_NOK = 0xa8
+    ERR_REMOVE_FILE_WRONG = 0xa9
 
     eeprom_error_msg = (
               'TOC is not consistent',
               'EEPROM Memory is full',
               'Checksum is wrong',
               'File is not found',
+              'File not removed',
               'Write error',
               'Error Set of File Header',
               'This FileType is not in yaml',
               'Defragmentation wrong',
+              'Issue at removing file',
     )
 
     def __init__(self, chip_ic=None, chip_address=None, busnum=None, writestrobe=None, TOC_start_address=None, i2c=None, **kwargs) :
@@ -151,10 +155,10 @@ class EEPROM_FS(object):
         self.fh_crc_data = 0
 
         self.file_db_address = 0x00
-        self.file_db_address_list = []
         self.file_block = []
         self.file_gap = []
         self.file_data = ""
+        self.file_insert = []
         self.wipe_char = 0x00
 
         self.error_code = {}
@@ -407,6 +411,33 @@ class EEPROM_FS(object):
 
         return (eepromfs_list)
 
+    def check_file(self, chckFile):
+
+        if self.chip_ic in ('24c01','24c02') :
+           self.check_TOC_crc()
+           self.toc_data_content = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           self.toc_FileList_data = self.toc_data_content [self.toc_FileList[0]:self.toc_FileList[0]+self.toc_FileList[1]+1]
+           for x in self.toc_FileList_data :
+              if x != 0 :
+                 #file_cnt = file_cnt + 1
+                 file_info = eeprom_read.readNBytes(self.TOC_start_address + x, self.TOC_start_address + x + self.fh_CRC[0] + self.fh_CRC[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                 filename = []
+                 for y in file_info[:self.fh_filename[0] + self.fh_filename[1] + 1] :
+                    filename.append(y)
+                    print ('filename: ',filename)
+                 print (self.fh_filetype_data)
+                 filename.append(self.fh_filetype_data)
+                 print ('filename: ',filename)
+                 print ('chckFile: ',chckFile)
+                 if filename == chckFile :
+                    print ('file exists')
+                    return True
+              else :
+                 print ('file not exists')
+                 return False
+
+    pass
+
     def add_file_to_TOC(self):
         # Add file information to TOC
         if self.chip_ic in ('24c01','24c02') :
@@ -426,7 +457,7 @@ class EEPROM_FS(object):
     def sync_TOC(self):
         # Synchronize changes in TOC
         if self.chip_ic in ('24c01','24c02') :
-           toc_data_content_read = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           self.toc_data_content = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
            toc_FreeMemorySize_data_read = self.toc_data_content [self.toc_FreeMemorySize[0]]
            if toc_FreeMemorySize_data_read != self.toc_FreeMemorySize_data :
                    cmp = eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FreeMemorySize[0], hex_to_bytes(self.toc_FreeMemorySize_data), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
@@ -436,6 +467,7 @@ class EEPROM_FS(object):
                    cmp = eeprom_write.writeNBytes(self.TOC_start_address + self.toc_NumberOfFiles[0], hex_to_bytes(self.toc_NumberOfFiles_data), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                    print("NumberOfFiles needs to sync")
            toc_FileList_data_read = self.toc_data_content [self.toc_FileList[0]:self.toc_FileList[0] + self.toc_FileList[1] + 1]
+           print ('SYNC: ',toc_FileList_data_read,self.toc_FileList_data)
            if toc_FileList_data_read != self.toc_FileList_data :
                    idx = self.toc_FileList[0]
                    for x in self.toc_FileList_data :
@@ -457,15 +489,9 @@ class EEPROM_FS(object):
 
         if self.chip_ic in ('24c01','24c02') :
                 
-           #if FileSize % self.block_size != 0 :
-           #   FileSize = FileSize + 1
-
-           if self.toc_FreeMemorySize_data < FileSize:
-              self.error_code['build_file_header'] = self.ERR_MEMORY_IS_FULL
-              return (list(self.error_code.values())[-1], None)
-
            self.fh_filesize_data = FileSize
            print("File size: ",dec_to_list(self.fh_filesize_data))
+
 
            element = bytearray()
            print(filename)
@@ -475,12 +501,14 @@ class EEPROM_FS(object):
            self.fh_filename_data = int(tmp,16)
            if self.chip_ic in ('24c01') :
               envelope = hex_to_2bytes(self.fh_filename_data) + hex_to_bytes(filetype) + dec_to_list(self.fh_filesize_data) + hex_to_bytes(0x40) # set Attribut InUse = 1, ReadOnly = 0
+              self.file_insert = hex_to_2bytes(self.fh_filename_data) + hex_to_bytes(filetype[0])
            elif self.chip_ic in ('24c02') :
               if filetype[0] == '' :
                  self.error_code['build_file_header'] = ERR_WRONG_FILETYPE
                  return (list(self.error_code.values())[-1], '')
 
               envelope = hex_to_4bytes(self.fh_filename_data) + hex_to_bytes(filetype[0]) + dec_to_list(self.fh_filesize_data) + hex_to_bytes(0x40) # set Attribut InUse = 1, ReadOnly = 0
+              self.file_insert = hex_to_4bytes(self.fh_filename_data) + hex_to_bytes(filetype[0])
 
            print ("Envelope: ",envelope)
            self.fh_crc_data = calculate_byte_crc(envelope)
@@ -490,6 +518,17 @@ class EEPROM_FS(object):
            self.fh_build_data.extend(hex_to_bytes(self.fh_crc_data))
 
            print ("File Header: {}".format(self.fh_build_data))
+
+           print('file_insert: ',self.file_insert)
+           if self.check_file(self.file_insert) == True :
+              if self.remove_file(filename, self.code_filetype(filetype[0],1)[0]) >= 0x0a :
+                 self.error_code['build_file_header'] = self.ERR_REMOVE_FILE_WRONG
+                 return(list(self.error_code.values())[-1])
+
+           if self.toc_FreeMemorySize_data < FileSize:
+              self.error_code['build_file_header'] = self.ERR_MEMORY_IS_FULL
+              return (list(self.error_code.values())[-1], None)
+
 
            #cmp = eeprom_write.writeNBytes(self.TOC_start_address, data_crc, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
            #cmp = eeprom_write.writeNBytes(self.toc_DataBlock, data_wipe, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
@@ -694,6 +733,7 @@ class EEPROM_FS(object):
            cmp = eeprom_write.writeNBytes(0x0a, data_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
            y = 0
            for x in reversed(matrix_data) :
+              print('Matrix_data Y: ',y)
               self.toc_FileList_data[y] = x.out()[0]
               y = y + 1
            print ("After FileList: [{}]". format(','.join(hex(z) for z in self.toc_FileList_data)))
@@ -720,44 +760,42 @@ class EEPROM_FS(object):
         
         if self.chip_ic in ('24c01','24c02') :
            print("remove_file_from_TOC")
+           print('before remove_file_list: ',self.toc_FileList_data)
            self.get_file_from_TOC()
            self.toc_NumberOfFiles_data = self.toc_data_content [self.toc_NumberOfFiles[0]]
            self.toc_FreeMemorySize_data = self.toc_data_content [self.toc_FreeMemorySize[0]]
-           for x in self.file_db_address_list :
+           for x in self.toc_FileList_data :
               if (idx == offset or vshift == 1) :
                  vshift = 1
-                 print ("address: ",idx,x)
-                 if (idx > offset) :
-                    print("shift <-: ", x)
-                    eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FileList[0] + (idx - 1), hex_to_bytes(x), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
-                    print("set to 0", x)
+                 print ("address: ",idx,x,offset)
+                 if (idx > offset and x != 0) :
+                    print("shift <-: ", idx, x)
+                    self.toc_FileList_data[idx - 1] = self.toc_FileList_data[idx]
+                    print("set to 0: ", idx)
                     eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FileList[0] + idx, hex_to_bytes(0x00), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                  elif (idx == offset) :
-                    print("set to 0", x)
-                    eeprom_write.writeNBytes(self.TOC_start_address + self.toc_FileList[0] + idx, hex_to_bytes(0x00), self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+                    print("set to 0: ", idx)
+                    self.toc_FileList_data[idx] = 0x00
                     self.toc_NumberOfFiles_data = self.toc_NumberOfFiles_data - 1
                     #print (self.toc_FreeMemorySize_data, self.fh_filesize_data)
                     self.toc_FreeMemorySize_data = self.toc_FreeMemorySize_data + self.fh_filesize_data + self.fh_CRC[0] + 1
                  elif ( x == 0 ) :
+                    self.toc_FileList_data[idx] = 0x00
                     break
                  idx = idx + 1
               else :
                  idx = idx + 1
+           self.toc_FileList_data[idx-1] = 0x00
 
            self.sync_TOC()
+        print('after remove_file_list: ',self.toc_FileList_data)
         pass
 
     def get_file_from_TOC(self):
         # get file information from TOC
         if self.chip_ic in ('24c01','24c02') :
-           self.file_db_address_list  = eeprom_read.readNBytes(self.TOC_start_address + self.toc_FileList[0], self.TOC_start_address + self.toc_FileList[0] + self.toc_FileList[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           self.toc_FileList_data  = eeprom_read.readNBytes(self.TOC_start_address + self.toc_FileList[0], self.TOC_start_address + self.toc_FileList[0] + self.toc_FileList[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
            self.toc_data_content = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
-        pass
-
-    def create_file(self, file_name, file_size, file_type):
-        # check if there is enough space on the chip
-        # create entry in TOC for new file
-        # write file data to chip
         pass
 
     def write_file(self, data):
@@ -777,6 +815,7 @@ class EEPROM_FS(object):
            data_content.append(ord(x))
            data_crc.append(ord(x))
         print('wf3:',data_content)
+
 
         #if len(data_content) % 2 != 0:
         #   print("write_file append 0x00")
@@ -826,7 +865,7 @@ class EEPROM_FS(object):
         file_found = 0
            
         if self.chip_ic in ('24c01','24c02') :
-           for x in self.file_db_address_list :
+           for x in self.toc_FileList_data :
               if x != 0 :
                  self.fh_data_content = eeprom_read.readNBytes(x, x + self.fh_CRC[0] + self.fh_CRC[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                  self.fh_filename_data = ""
@@ -855,11 +894,13 @@ class EEPROM_FS(object):
 
     def remove_file(self, filename, filetype) :
         self.fh_filename_data = self.get_file_from_TOC()
+        #self.toc_FileList_data = []
         file_found = 0
         idx = 0
+        print (filename,filetype)
            
         if self.chip_ic in ('24c01','24c02') :
-           for x in self.file_db_address_list :
+           for x in self.toc_FileList_data :
               if x != 0 :
                  self.fh_data_content = eeprom_read.readNBytes(x, x + self.fh_CRC[0] + self.fh_CRC[1], self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
                  self.fh_filename_data = ""
@@ -881,6 +922,7 @@ class EEPROM_FS(object):
 
         if file_found == 0 :
            self.error_code['remove_file'] = self.ERR_FILE_NOT_FOUND
+           return (list(self.error_code.values())[-1])
         else :
            print ("set attribute InUse = disable idx: ",idx_left)
            self.remove_file_from_TOC(idx_left)
@@ -979,7 +1021,9 @@ class EEPROM_FS(object):
         print ("FileName: {}".format(filename))
         print ("FileType: {}".format(filetype))
 
-        self.remove_file(filename, filetype)
+        if self.remove_file(filename, filetype) >= 0xa0 :
+           self.error_code['remove_eepromfs'] = self.ERR_FILE_NOT_REMOVED 
+           return (list(self.error_code.values())[-1])
         
         self.error_code['remove_eepromfs'] = self.FILE_REMOVED 
         return (list(self.error_code.values())[-1])
