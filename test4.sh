@@ -17,6 +17,8 @@
 ./eeprom_write_file.py -f data/AT.pdf
 ./eeprom_write_file.py -f data/GG.txt
 
+./eeprom_wipe.py
+
 ./eeprom_list.py
 
 ./eeprom_load_file.py -f AAAA.txt
@@ -40,4 +42,6 @@ hexyl data/FF.pdf
 hexyl FF.pdf
 hexyl data/GG.txt
 hexyl GG.txt
+
+./eeprom_write_file.py -f data/AT.pdf
 

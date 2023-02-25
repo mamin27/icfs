@@ -6,8 +6,7 @@ import eepromfs
 
 toc = eepromfs.EEPROM_FS()
 
-for i in toc.ls_eepromfs() :
-   print (i)
+toc.wipe()
 
 print("Process Stats: {}".format(toc.error_code))
 if toc.error_code.popitem()[1] >= 0xa0 :

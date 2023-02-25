@@ -290,3 +290,6 @@ eeprom_fs:
           mem_size: 0x7F
       '24c02':
           mem_size: 0xFF
+
+    Wipe:
+       char: 0x11

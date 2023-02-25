@@ -32,4 +32,6 @@ if __name__ == '__main__' :
    rc = toc.load_eepromfs(filename)
 
    print("Process Stats: {}".format(toc.error_code))
-   print ("RC: {}".format(rc))
+   if toc.error_code.popitem()[1] >= 0xa0 :
+      print(toc.error_msg(toc.error_code.popitem()[1]))
+   #print ("RC: {}".format(rc))

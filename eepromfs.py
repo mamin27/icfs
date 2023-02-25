@@ -70,6 +70,7 @@ class EEPROM_FS(object):
     DEFRAGMENT_OK = 0x07
     DEFRAGMENT_INGAP = 0x08
     DEFRAGMENT_MOVE = 0x09
+    EEPROM_WIPED = 0x0a
 
     ERR_TOC_INCOSISTENT = 0xa0
     ERR_MEMORY_IS_FULL  = 0xa1
@@ -79,6 +80,17 @@ class EEPROM_FS(object):
     ERR_BUILD_FILE_HEADER = 0xa5
     ERR_WRONG_FILETYPE = 0xa6
     DEFRAGMENT_NOK = 0xa7
+
+    eeprom_error_msg = (
+              'TOC is not consistent',
+              'EEPROM Memory is full',
+              'Checksum is wrong',
+              'File is not found',
+              'Write error',
+              'Error Set of File Header',
+              'This FileType is not in yaml',
+              'Defragmentation wrong',
+    )
 
     def __init__(self, chip_ic=None, chip_address=None, busnum=None, writestrobe=None, TOC_start_address=None, i2c=None, **kwargs) :
 
@@ -143,6 +155,7 @@ class EEPROM_FS(object):
         self.file_block = []
         self.file_gap = []
         self.file_data = ""
+        self.wipe_char = 0x00
 
         self.error_code = {}
 
@@ -215,6 +228,7 @@ class EEPROM_FS(object):
           self.fh_NumberOfUsedBlocks = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_NumberOfUsedBlocks']
           self.fh_ModificationDate = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_ModificationDate']
           self.fh_CreationDate = toc_config['eeprom_fs']['FH_attributes'][self.chip_ic]['fh_CreationDate']
+        self.wipe_char = toc_config['eeprom_fs']['Wipe']['char']
 
         d.close()
 
@@ -399,8 +413,8 @@ class EEPROM_FS(object):
            idx = 0
            for x in self.toc_FileList_data :
               if x == 0 :
-                 print ("FreeMemorySize: ",self.toc_FreeMemorySize_data - self.fh_filesize_data - self.fh_CRC[0])
-                 self.toc_FreeMemorySize_data = self.toc_FreeMemorySize_data - self.fh_filesize_data - self.fh_CRC[0] 
+                 print ("FreeMemorySize: ",self.toc_FreeMemorySize_data - self.fh_filesize_data - self.fh_Size - 1)
+                 self.toc_FreeMemorySize_data = self.toc_FreeMemorySize_data - self.fh_filesize_data - self.fh_Size - 1
                  self.toc_NumberOfFiles_data = self.toc_NumberOfFiles_data + 1
                  self.toc_FileList_data[idx] = self.file_db_address
                  break
@@ -703,6 +717,7 @@ class EEPROM_FS(object):
         # delete file information from TOC
         idx = 0
         vshift = 0
+        
         if self.chip_ic in ('24c01','24c02') :
            print("remove_file_from_TOC")
            self.get_file_from_TOC()
@@ -968,6 +983,40 @@ class EEPROM_FS(object):
         
         self.error_code['remove_eepromfs'] = self.FILE_REMOVED 
         return (list(self.error_code.values())[-1])
+        
+    def wipe(self):
+
+        self.toc_NumberOfFiles_data = 0
+        self.toc_NumberOfOrphanBlocks = 0
+        self.toc_NumberOfDeletedBlocks = 0
+        self.toc_NumberOfWriteBlocks = 0
+        wipe_content = []
+
+        if self.chip_ic in ('24c01','24c02') :
+           self.check_TOC_crc()
+           self.toc_data_content = eeprom_read.readNBytes(self.TOC_start_address, self.toc_DataBlock - 1, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+           self.toc_FreeMemorySize_data = self.toc_data_content [self.toc_FreeMemorySize[0]]
+           self.toc_NumberOfFiles_data = self.toc_data_content [self.toc_NumberOfFiles[0]]
+           self.toc_FileList_data = self.toc_data_content [self.toc_FileList[0]:self.toc_FileList[0]+self.toc_FileList[1]+1]
+           stored_crc = str(hex(self.toc_data_content[self.toc_crc[0]])) + str(hex(self.toc_data_content[self.toc_crc[0] + self.toc_crc[1]]))[2:]
+
+        # option
+        self.file_matrix_24c01()
+        print ('Wipe: ', hex(self.wipe_char))
+
+        for x in range(len(self.file_gap)) :
+           wipe_size = self.file_gap[x].out()[2] - 1
+           if wipe_size != 0x1 :
+              wipe_content.clear()
+              for y in range (wipe_size) :
+                 wipe_content.append(self.wipe_char)
+              cmp = eeprom_write.writeNBytes(self.file_gap[x].out()[0] + 1, wipe_content, self.busnum,self.chip_address,self.writestrobe,self.chip_ic)
+        self.error_code['wipe'] = self.EEPROM_WIPED 
+        return (list(self.error_code.values())[-1])
+
+    def error_msg(self,error_code):
+       error = error_code - 0xa0
+       return(self.eeprom_error_msg[error])
 
     def wear_leveling(self):
         # balance the number of writes across the chip

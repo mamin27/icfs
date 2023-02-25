@@ -14,6 +14,8 @@
 
 ./eeprom_write_file.py -f data/EE.pdf
 
+./eeprom_wipe.py
+
 ./eeprom_list.py
 
 ./eeprom_load_file.py -f AT.pdf
