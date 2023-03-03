@@ -492,7 +492,7 @@ class EEPROM_FS(object):
               tmp = element.decode('ascii')
            self.fh_filename_data = int(tmp,16)
            if self.chip_ic in ('24c01') :
-              envelope = hex_to_2bytes(self.fh_filename_data) + hex_to_bytes(filetype) + dec_to_list(self.fh_filesize_data) + hex_to_bytes(0x40) # set Attribut InUse = 1, ReadOnly = 0
+              envelope = hex_to_2bytes(self.fh_filename_data) + hex_to_bytes(filetype[0]) + dec_to_list(self.fh_filesize_data) + hex_to_bytes(0x40) # set Attribut InUse = 1, ReadOnly = 0
               self.file_insert = hex_to_2bytes(self.fh_filename_data) + hex_to_bytes(filetype[0])
            elif self.chip_ic in ('24c02') :
               if filetype[0] == '' :
