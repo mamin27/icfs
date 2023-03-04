@@ -8,7 +8,7 @@ import logging
 from ecomet_i2c_sensors import i2c_command
 from ecomet_i2c_sensors.eeprom import chip_list,eeprom_write,eeprom_read
 from smbus2 import SMBus
-from eeprom_math import hex_to_bytes,dec_to_list,hex_to_2bytes,hex_to_3bytes,hex_to_4bytes,calculate_byte_crc,calculate_2byte_crc,zero_to_bytes
+from .lib.eeprom_math import hex_to_bytes,dec_to_list,hex_to_2bytes,hex_to_3bytes,hex_to_4bytes,calculate_byte_crc,calculate_2byte_crc,zero_to_bytes
 
 #from i2c import i2c_io
 class rawline(object) :
