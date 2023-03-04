@@ -2,7 +2,7 @@
 #import sys
 #sys.path.append("..")
 
-import eepromfs
+from icfs import eepromfs
 import sys, getopt
 import logging
 

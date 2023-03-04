@@ -2,7 +2,7 @@
 #import sys
 #sys.path.append("..")
 
-import eepromfs
+from icfs import eepromfs
 import logging
 
 logging.basicConfig(level=logging.DEBUG,  # change level looging to (INFO, DEBUG, ERROR)
