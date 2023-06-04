@@ -13,6 +13,8 @@ from .lib.eeprom_math import hex_to_bytes,dec_to_list,hex_to_2bytes,hex_to_3byte
 
 if i2c_platform.plat_list[Platform.platform_detect()] == 'H616':
     import OPi.GPIO as rGPIO
+else :
+    import RPi.GPIO as rGPIO
 
 #from i2c import i2c_io
 class rawline(object) :
